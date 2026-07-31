@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light">
+<title>Pesados.ID · A plataforma de market share do equipamento pesado</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    color-scheme:light only;
+    --obs:#111111;--paper:#F8F6F1;--white:#fff;--sinal:#E8B21C;
+    --ink70:#37373a;--ink45:#6c6a63;--ink25:#a9a69c;
+    --line:#e4e0d5;--line2:#efece3;--dk:#1b1b19;--dkline:#2e2e2b;
+    --pos:#1f7a4d;--pos-bg:#e7f4ec;--neg:#b3261e;--neg-bg:#fbeceb;--warn:#9a5b1a;--warn-bg:#fdf2e6;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{background:#F8F6F1 !important;scroll-behavior:smooth}
+  body{font-family:'Inter',system-ui,sans-serif;background:#F8F6F1 !important;color:var(--obs);
+    line-height:1.55;font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 24px}
+  .btn{font-family:inherit;font-weight:600;border-radius:10px;cursor:pointer;border:none;
+    text-decoration:none;display:inline-block;font-size:14.5px;padding:13px 22px}
+  .btn-p{background:var(--obs);color:#fff}
+  .btn-s{background:transparent;color:var(--obs);border:1px solid var(--obs)}
+  .btn-y{background:var(--sinal);color:var(--obs)}
+
+  /* NAV */
+  nav{border-bottom:1px solid var(--line);background:rgba(248,246,241,.92);backdrop-filter:blur(8px);
+    position:sticky;top:0;z-index:50}
+  .nav-in{max-width:1080px;margin:0 auto;padding:13px 24px;display:flex;align-items:center;
+    justify-content:space-between;gap:20px}
+  .logo{display:flex;align-items:center;gap:9px;font-weight:800;font-size:16px;letter-spacing:-.03em}
+  .logo .mk{width:26px;height:26px;background:var(--obs);border-radius:6px;display:grid;place-items:center}
+  .logo .mk span{color:var(--sinal);font-size:13px;font-weight:800}
+  .logo .id{color:var(--ink25);font-weight:600}
+  .nav-links{display:flex;gap:22px;align-items:center}
+  .nav-links a{font-size:13.5px;font-weight:500;color:var(--ink45);text-decoration:none}
+  .nav-links a:hover{color:var(--obs)}
+  .nav-r{display:flex;gap:10px;align-items:center}
+  .nav-r .lg{font-size:13.5px;font-weight:600;color:var(--obs);text-decoration:none}
+  .nav-r .cta{font-size:13px;font-weight:600;background:var(--obs);color:#fff;
+    padding:9px 16px;border-radius:8px;text-decoration:none}
+
+  /* HERO */
+  .hero{padding:74px 0 0;text-align:center}
+  .eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:11px;font-weight:700;
+    letter-spacing:.14em;text-transform:uppercase;color:var(--ink45);background:var(--white);
+    border:1px solid var(--line);padding:6px 13px;border-radius:100px;margin-bottom:26px}
+  .eyebrow .dot{width:6px;height:6px;border-radius:50%;background:var(--sinal)}
+  h1{font-size:clamp(36px,5.8vw,62px);font-weight:800;letter-spacing:-.038em;line-height:1.02;
+    max-width:16ch;margin:0 auto}
+  h1 .hl{background:linear-gradient(transparent 62%,#F7DE9B 62%)}
+  .lead{margin:24px auto 0;font-size:18.5px;color:var(--ink70);max-width:58ch;line-height:1.6}
+  .lead b{color:var(--obs);font-weight:600}
+  .hero-cta{margin-top:32px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+  .hero-note{font-size:13px;color:var(--ink45);margin-top:16px}
+
+  /* DASHBOARD FRAME */
+  .dashwrap{margin-top:54px;padding-bottom:70px}
+  .browser{background:var(--white);border:1px solid var(--line);border-radius:16px 16px 0 0;
+    overflow:hidden;box-shadow:0 -1px 0 var(--line),0 22px 60px -26px rgba(17,17,17,.28);text-align:left}
+  .chrome{display:flex;align-items:center;gap:12px;padding:11px 15px;background:var(--paper);
+    border-bottom:1px solid var(--line)}
+  .dots{display:flex;gap:6px}
+  .dots i{width:10px;height:10px;border-radius:50%;background:var(--line);display:block}
+  .urlbar{flex:1;background:var(--white);border:1px solid var(--line);border-radius:7px;
+    padding:5px 12px;font-size:11.5px;color:var(--ink45);max-width:300px;margin:0 auto}
+  .app-top{display:flex;align-items:center;justify-content:space-between;gap:14px;
+    padding:13px 18px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+  .app-brand{display:flex;align-items:center;gap:9px;font-weight:700;font-size:14px;letter-spacing:-.02em}
+  .app-brand .mk{width:22px;height:22px;background:var(--obs);border-radius:5px;display:grid;place-items:center}
+  .app-brand .mk span{color:var(--sinal);font-size:11px;font-weight:800}
+  .acct{display:flex;align-items:center;gap:9px}
+  .acct .w{text-align:right}
+  .acct .w .n{font-size:12px;font-weight:600}
+  .acct .w .p{font-size:10px;color:var(--ink25)}
+  .acct .av{width:26px;height:26px;border-radius:50%;background:var(--obs);color:var(--sinal);
+    display:grid;place-items:center;font-size:10.5px;font-weight:800}
+  .app-filters{display:flex;gap:7px;padding:11px 18px;border-bottom:1px solid var(--line);
+    background:var(--paper);flex-wrap:wrap;align-items:center}
+  .chip{white-space:nowrap}
+  .chip{font-size:11.5px;font-weight:600;background:var(--white);border:1px solid var(--line);
+    border-radius:7px;padding:6px 11px;color:var(--obs)}
+  .chip.on{background:var(--obs);color:#fff;border-color:var(--obs)}
+  .app-tabs{display:flex;padding:0 18px;border-bottom:1px solid var(--line);
+    overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+  .app-tabs::-webkit-scrollbar{display:none}
+  .atab{font-size:12.5px;font-weight:600;color:var(--ink45);padding:11px 13px;
+    border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap}
+  .atab.on{color:var(--obs);border-bottom-color:var(--sinal)}
+  .app-body{padding:18px;background:var(--paper)}
+  .dkpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
+  .dkpi{background:var(--white);border:1px solid var(--line);border-radius:11px;padding:13px 13px 11px}
+  .dkpi .l{font-size:9.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--ink25)}
+  .dkpi .n{font-size:22px;font-weight:800;letter-spacing:-.035em;margin-top:7px;line-height:1}
+  .dkpi .d{font-size:10.5px;font-weight:600;margin-top:6px;display:inline-block;padding:2px 6px;border-radius:5px}
+  .d.up{background:var(--pos-bg);color:var(--pos)}
+  .d.dn{background:var(--neg-bg);color:var(--neg)}
+  .d.fl{background:var(--paper);color:var(--ink45)}
+  .dcols{display:grid;grid-template-columns:1.3fr 1fr;gap:12px}
+  .dcard{background:var(--white);border:1px solid var(--line);border-radius:12px;padding:15px}
+  .dcard h5{font-size:12.5px;font-weight:700;letter-spacing:-.01em}
+  .dcard .sb{font-size:10.5px;color:var(--ink25);margin-top:2px;margin-bottom:14px}
+  .brow{margin-bottom:11px}
+  .brow:last-child{margin-bottom:0}
+  .brt{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;gap:8px}
+  .brt .nm{font-size:11.5px;font-weight:600}
+  .brt .nm em{font-style:normal;font-size:9px;font-weight:800;background:var(--obs);color:var(--sinal);
+    padding:1px 5px;border-radius:3px;margin-left:5px;letter-spacing:.05em}
+  .brt .pc{font-size:11.5px;font-weight:700;display:flex;gap:6px;align-items:center}
+  .dl{font-size:9px;font-weight:700;padding:1px 4px;border-radius:3px}
+  .dl.up{background:var(--pos-bg);color:var(--pos)}
+  .dl.dn{background:var(--neg-bg);color:var(--neg)}
+  .btk{height:6px;background:var(--paper);border-radius:100px;overflow:hidden}
+  .bfl{height:100%;border-radius:100px;background:var(--obs)}
+  .bfl.me{background:var(--sinal)}
+  .bfl.dim{background:var(--ink25)}
+  .alertline{display:flex;gap:10px;padding:11px;border-radius:9px;background:var(--warn-bg);
+    border:1px solid #e8d3ba;margin-top:12px}
+  .alertline .ic{width:22px;height:22px;border-radius:6px;background:var(--warn);color:#fff;
+    display:grid;place-items:center;font-size:11px;font-weight:800;flex-shrink:0}
+  .alertline .tx h6{font-size:11.5px;font-weight:700}
+  .alertline .tx p{font-size:11px;color:var(--ink70);margin-top:2px}
+
+  /* TRUSTBAR */
+  .tbar{border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:26px 0;background:var(--white)}
+  .tbar-in{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;text-align:center}
+  .tb .v{font-size:23px;font-weight:800;letter-spacing:-.035em}
+  .tb .k{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink25);margin-top:6px}
+
+  /* SECTIONS */
+  section{padding:76px 0;border-bottom:1px solid var(--line)}
+  .sec-lb{font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--ink45);margin-bottom:16px}
+  h2{font-size:clamp(27px,3.7vw,40px);font-weight:800;letter-spacing:-.032em;line-height:1.1;max-width:20ch}
+  .sec-lead{margin-top:16px;font-size:16.5px;color:var(--ink70);max-width:60ch;line-height:1.6}
+  .center{text-align:center}
+  .center h2,.center .sec-lead{margin-left:auto;margin-right:auto}
+
+  /* DECISOES */
+  .dec{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:40px}
+  .dcell{background:var(--white);border:1px solid var(--line);border-radius:16px;padding:26px 24px;
+    display:flex;flex-direction:column}
+  .dcell .q{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--warn);background:var(--warn-bg);display:inline-block;padding:4px 9px;border-radius:6px;
+    align-self:flex-start;margin-bottom:14px}
+  .dcell h3{font-size:19px;font-weight:700;letter-spacing:-.022em;line-height:1.25}
+  .dcell p{font-size:14.5px;color:var(--ink70);margin-top:10px;line-height:1.62;flex:1}
+  .dcell .ans{margin-top:16px;padding-top:14px;border-top:1px solid var(--line2);font-size:13.5px;color:var(--ink45)}
+  .dcell .ans b{color:var(--obs);font-weight:600}
+
+  /* MODULOS */
+  .mods{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:38px}
+  .mod{background:var(--white);border:1px solid var(--line);border-radius:14px;padding:22px}
+  .mod .ix{font-size:10.5px;font-weight:800;letter-spacing:.1em;color:var(--sinal);margin-bottom:12px}
+  .mod h4{font-size:15.5px;font-weight:700;letter-spacing:-.018em}
+  .mod p{font-size:13.5px;color:var(--ink70);margin-top:8px;line-height:1.6}
+
+  /* DARK */
+  .dark{background:var(--obs);color:#efeee9;border-radius:20px;padding:48px 40px}
+  .dark .lb{font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--sinal);margin-bottom:16px}
+  .dark h2{color:#fff;max-width:22ch}
+  .dark p{font-size:16px;color:#b9b7b0;margin-top:16px;max-width:62ch;line-height:1.65}
+  .dark p b{color:#fff;font-weight:600}
+  .dbars{margin-top:32px;display:flex;flex-direction:column;gap:15px}
+  .dbar .t{display:flex;justify-content:space-between;font-size:14px;font-weight:600;margin-bottom:6px}
+  .dbar .t .r{color:var(--sinal)}
+  .dbar .tr{height:7px;background:var(--dkline);border-radius:100px;overflow:hidden}
+  .dbar .fl{height:100%;background:#fff;border-radius:100px}
+  .dbar .fl.y{background:var(--sinal)}
+
+  /* PLANOS */
+  .plans{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:42px;align-items:start}
+  .plan{background:var(--white);border:1px solid var(--line);border-radius:18px;padding:28px 24px;
+    display:flex;flex-direction:column;height:100%}
+  .plan.hi{border:2px solid var(--obs);position:relative}
+  .plan .badge{position:absolute;top:-11px;left:24px;background:var(--sinal);color:var(--obs);
+    font-size:10px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;padding:4px 10px;border-radius:6px}
+  .plan .nm{font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink45)}
+  .plan .pr{margin-top:14px;display:flex;align-items:baseline;gap:5px}
+  .plan .pr .v{font-size:32px;font-weight:800;letter-spacing:-.04em;line-height:1}
+  .plan .pr .u{font-size:13px;color:var(--ink45);font-weight:500}
+  .plan .de{font-size:13.5px;color:var(--ink70);margin-top:12px;padding-bottom:18px;border-bottom:1px solid var(--line2)}
+  .plan ul{list-style:none;margin-top:18px;display:flex;flex-direction:column;gap:10px;flex:1}
+  .plan li{font-size:13.5px;color:var(--ink70);padding-left:22px;position:relative;line-height:1.5}
+  .plan li::before{content:"";position:absolute;left:0;top:6px;width:11px;height:6px;
+    border-left:2px solid var(--sinal);border-bottom:2px solid var(--sinal);transform:rotate(-45deg)}
+  .plan .go{margin-top:24px}
+  .plan .go a{display:block;text-align:center;width:100%}
+  .plans-note{text-align:center;font-size:13.5px;color:var(--ink45);margin-top:24px}
+
+  /* TRUST */
+  .trust{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:36px}
+  .tc{background:var(--white);border:1px solid var(--line);border-radius:14px;padding:22px}
+  .tc h4{font-size:15px;font-weight:700;letter-spacing:-.015em}
+  .tc p{font-size:14px;color:var(--ink70);margin-top:8px;line-height:1.6}
+
+  /* FINAL */
+  .final{padding:84px 0}
+  .fbox{background:var(--obs);border-radius:22px;padding:56px 44px;text-align:center;color:#efeee9}
+  .fbox h2{color:#fff;margin:0 auto;max-width:20ch}
+  .fbox p{font-size:16.5px;color:#b9b7b0;margin:16px auto 0;max-width:54ch}
+  .fbox .cta{margin-top:30px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+  .fbox .nt{font-size:13px;color:#78766f;margin-top:16px}
+
+  footer{border-top:1px solid var(--line);padding:30px 0 50px}
+  .ft{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--ink25)}
+  .ft b{color:var(--ink45);font-weight:600}
+
+  @media(max-width:900px){
+    .dec,.trust,.plans{grid-template-columns:1fr}
+    .mods{grid-template-columns:repeat(2,1fr)}
+    .dcols{grid-template-columns:1fr}
+    .dkpis,.tbar-in{grid-template-columns:repeat(2,1fr)}
+    .nav-links{display:none}
+    .dark,.fbox{padding:34px 24px}
+    .plans{gap:30px}
+  }
+  @media(max-width:640px){
+    .wrap{padding:0 16px}
+    .hero{padding:48px 0 0}
+    section{padding:52px 0}
+    .final{padding:56px 0}
+    .dashwrap{margin-top:36px;padding-bottom:48px}
+    .mods{grid-template-columns:1fr}
+    .hero-cta,.fbox .cta{flex-direction:column;align-items:stretch}
+    .hero-cta .btn,.fbox .cta .btn{text-align:center}
+    .dec,.trust{gap:12px}
+    .dcell,.tc,.plan{padding:22px 20px}
+    .app-body{padding:14px}
+    .dcard{padding:13px}
+    .browser{border-radius:12px 12px 0 0}
+    .tbar-in{gap:16px 12px}
+    .fbox{padding:32px 22px}
+    .plan .pr .v{font-size:28px}
+  }
+</style>
+</head>
+<body>
+
+<nav><div class="nav-in">
+  <div class="logo"><div class="mk"><span>P</span></div>Pesados<span class="id">.ID</span></div>
+  <div class="nav-links">
+    <a href="#plataforma">Plataforma</a>
+    <a href="#decisoes">Decisões</a>
+    <a href="#metodologia">Metodologia</a>
+    <a href="#planos">Planos</a>
+  </div>
+  <div class="nav-r">
+    <a href="#" class="lg">Entrar</a>
+    <a href="#planos" class="cta">Agendar demonstração</a>
+  </div>
+</div></nav>
+
+<div class="wrap">
+
+  <!-- HERO -->
+  <div class="hero">
+    <div class="eyebrow"><span class="dot"></span>Plataforma de inteligência · equipamento pesado</div>
+    <h1>O <span class="hl">market share</span> que o seu setor nunca teve.</h1>
+    <p class="lead">Carro tem placa, e por isso todo fabricante sabe exatamente onde ganha e onde perde. Máquina pesada não tem. <b>O Pesados.ID reconstrói essa participação e entrega em plataforma</b> — por marca, modelo, estado e município, atualizada continuamente.</p>
+    <div class="hero-cta">
+      <a href="#planos" class="btn btn-p">Agendar demonstração</a>
+      <a href="#plataforma" class="btn btn-s">Ver a plataforma</a>
+    </div>
+    <p class="hero-note">Assinatura anual · implantação em 15 dias · sem integração com seu sistema</p>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div class="dashwrap" id="plataforma">
+    <div class="browser">
+      <div class="chrome">
+        <div class="dots"><i></i><i></i><i></i></div>
+        <div class="urlbar">app.pesados.id/share</div>
+      </div>
+
+      <div class="app-top">
+        <div class="app-brand"><div class="mk"><span>P</span></div>Pesados.ID</div>
+        <div class="acct">
+          <div class="w"><div class="n">Fabricante · Brasil</div><div class="p">Plano Nacional</div></div>
+          <div class="av">FB</div>
+        </div>
+      </div>
+
+      <div class="app-filters">
+        <span class="chip on">Retroescavadeira</span>
+        <span class="chip">Minas Gerais</span>
+        <span class="chip">Últimos 12 meses</span>
+        <span class="chip">Por unidades</span>
+      </div>
+
+      <div class="app-tabs">
+        <div class="atab on">Participação</div>
+        <div class="atab">Território</div>
+        <div class="atab">Rede de dealers</div>
+        <div class="atab">Frota instalada</div>
+        <div class="atab">Alertas</div>
+      </div>
+
+      <div class="app-body">
+        <div class="dkpis">
+          <div class="dkpi"><div class="l">Seu share</div><div class="n">18,8%</div><div class="d dn">▼ 1,8 p.p.</div></div>
+          <div class="dkpi"><div class="l">Mercado</div><div class="n">168 un</div><div class="d up">▲ 12%</div></div>
+          <div class="dkpi"><div class="l">Ticket médio</div><div class="n">R$ 424 mil</div><div class="d dn">▼ 3,1%</div></div>
+          <div class="dkpi"><div class="l">Cobertura</div><div class="n">25/104</div><div class="d fl">municípios</div></div>
+        </div>
+
+        <div class="dcols">
+          <div class="dcard">
+            <h5>Participação por marca</h5>
+            <div class="sb">Minas Gerais · retroescavadeira · 12 meses</div>
+            <div class="brow"><div class="brt"><span class="nm">New Holland</span><span class="pc"><span class="dl up">+2,1</span>35,3%</span></div><div class="btk"><div class="bfl" style="width:100%"></div></div></div>
+            <div class="brow"><div class="brt"><span class="nm">Sua marca <em>VOCÊ</em></span><span class="pc"><span class="dl dn">−1,8</span>18,8%</span></div><div class="btk"><div class="bfl me" style="width:53%"></div></div></div>
+            <div class="brow"><div class="brt"><span class="nm">Randon</span><span class="pc"><span class="dl up">+0,4</span>13,0%</span></div><div class="btk"><div class="bfl dim" style="width:37%"></div></div></div>
+            <div class="brow"><div class="brt"><span class="nm">Case</span><span class="pc"><span class="dl dn">−0,7</span>12,1%</span></div><div class="btk"><div class="bfl dim" style="width:34%"></div></div></div>
+            <div class="brow"><div class="brt"><span class="nm">XCMG</span><span class="pc"><span class="dl up">+4,3</span>11,1%</span></div><div class="btk"><div class="bfl dim" style="width:31%"></div></div></div>
+            <div class="brow"><div class="brt"><span class="nm">Caterpillar</span><span class="pc"><span class="dl dn">−0,2</span>2,9%</span></div><div class="btk"><div class="bfl dim" style="width:8%"></div></div></div>
+          </div>
+
+          <div class="dcard">
+            <h5>Onde você está perdendo</h5>
+            <div class="sb">Variação de share por região</div>
+            <div class="brow"><div class="brt"><span class="nm">Norte de Minas</span><span class="pc"><span class="dl dn">−6,2</span>4,1%</span></div><div class="btk"><div class="bfl dim" style="width:12%"></div></div></div>
+            <div class="brow"><div class="brt"><span class="nm">Vale do Rio Doce</span><span class="pc"><span class="dl dn">−3,4</span>7,8%</span></div><div class="btk"><div class="bfl dim" style="width:22%"></div></div></div>
+            <div class="brow"><div class="brt"><span class="nm">Triângulo</span><span class="pc"><span class="dl dn">−1,1</span>16,4%</span></div><div class="btk"><div class="bfl dim" style="width:46%"></div></div></div>
+            <div class="brow"><div class="brt"><span class="nm">Sul de Minas</span><span class="pc"><span class="dl up">+3,0</span>27,2%</span></div><div class="btk"><div class="bfl me" style="width:77%"></div></div></div>
+
+            <div class="alertline">
+              <div class="ic">!</div>
+              <div class="tx">
+                <h6>Entrante detectado no Norte de Minas</h6>
+                <p>XCMG registrou 4 unidades com ticket 31% abaixo da média, em venda direta ao comprador.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TRUSTBAR -->
+<div class="tbar"><div class="wrap"><div class="tbar-in">
+  <div class="tb"><div class="v">5.570</div><div class="k">Municípios monitorados</div></div>
+  <div class="tb"><div class="v">27</div><div class="k">Estados</div></div>
+  <div class="tb"><div class="v">14</div><div class="k">Categorias de máquina</div></div>
+  <div class="tb"><div class="v">Diária</div><div class="k">Frequência de atualização</div></div>
+</div></div></div>
+
+<div class="wrap">
+
+  <!-- DECISOES -->
+  <section id="decisoes">
+    <div class="sec-lb">Por que isso importa</div>
+    <h2>Quatro decisões que hoje você toma no escuro</h2>
+    <p class="sec-lead">Inteligência de mercado só vale se muda uma decisão. Estas são as que os nossos assinantes tomam com o Pesados.ID na mesa.</p>
+
+    <div class="dec">
+      <div class="dcell">
+        <span class="q">Decisão de rede</span>
+        <h3>Onde abrir, trocar ou cobrar o distribuidor</h3>
+        <p>Você sabe quanto cada dealer vende para você. Não sabe quanto o mercado dele comprou no total — nem quanto o concorrente vendeu ali. Sem denominador, não existe avaliação de performance, só volume absoluto.</p>
+        <div class="ans"><b>Com a plataforma:</b> share do seu dealer dentro do território dele, contra cada concorrente, município a município.</div>
+      </div>
+
+      <div class="dcell">
+        <span class="q">Decisão de preço</span>
+        <h3>Se o desconto é necessário ou é hábito</h3>
+        <p>O time comercial pede desconto alegando pressão de preço. Sem o ticket praticado pelo concorrente na mesma região e no mesmo mês, a discussão vira opinião contra opinião.</p>
+        <div class="ans"><b>Com a plataforma:</b> ticket médio por marca, região e período, com a diferença exata contra o seu.</div>
+      </div>
+
+      <div class="dcell">
+        <span class="q">Decisão de meta</span>
+        <h3>Onde ainda cabe crescimento</h3>
+        <p>Meta feita por histórico premia quem já vende e ignora onde há mercado inexplorado. Você distribui orçamento por inércia, não por potencial.</p>
+        <div class="ans"><b>Com a plataforma:</b> volume real por região e sua penetração em cada uma. Meta ancorada em mercado, não em ano anterior.</div>
+      </div>
+
+      <div class="dcell">
+        <span class="q">Decisão de defesa</span>
+        <h3>Quando reagir ao entrante</h3>
+        <p>Concorrente novo cresce em silêncio por dois ou três anos antes de aparecer em qualquer estatística. Quando você percebe, ele já tem base instalada e rede montada.</p>
+        <div class="ans"><b>Com a plataforma:</b> alerta na primeira venda registrada dele na sua região, com ticket e velocidade de avanço.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- MODULOS -->
+  <section>
+    <div class="sec-lb">Módulos da plataforma</div>
+    <h2>O que está incluído na assinatura</h2>
+    <div class="mods">
+      <div class="mod"><div class="ix">01</div><h4>Participação</h4><p>Share por marca, modelo e período, com variação contra o ciclo anterior. Exportável para o seu BI.</p></div>
+      <div class="mod"><div class="ix">02</div><h4>Território</h4><p>Quebra por estado, mesorregião e município. Identifica praça sem cobertura e praça em queda.</p></div>
+      <div class="mod"><div class="ix">03</div><h4>Rede de dealers</h4><p>Performance de cada concessionária contra o mercado do território dela, com ticket e amplitude.</p></div>
+      <div class="mod"><div class="ix">04</div><h4>Frota instalada</h4><p>Onde as máquinas de cada marca operam, por idade e modelo. Base para peças, serviço e reposição.</p></div>
+      <div class="mod"><div class="ix">05</div><h4>Alertas</h4><p>Notificação de entrante novo, queda de share e movimento atípico de preço na sua região.</p></div>
+      <div class="mod"><div class="ix">06</div><h4>Relatórios e API</h4><p>Exportação em planilha, relatório executivo mensal e API para integrar ao seu ambiente de dados.</p></div>
+    </div>
+  </section>
+
+  <!-- DARK -->
+  <section>
+    <div class="dark">
+      <div class="lb">O ponto cego que custa participação</div>
+      <h2>O entrante não aparece na estatística do setor</h2>
+      <p>Associação publica o que os associados reportam, e importador raramente é associado. Resultado: <b>o concorrente que mais avança é justamente o que você menos enxerga</b>. Em Minas, um fabricante asiático já ocupava dois dígitos da frota instalada — vendendo direto ao comprador, sem rede, com ticket 31% abaixo da média — sem constar em nenhuma série oficial.</p>
+      <div class="dbars">
+        <div class="dbar"><div class="t"><span>Marca líder</span><span>35,3%</span></div><div class="tr"><div class="fl" style="width:100%"></div></div></div>
+        <div class="dbar"><div class="t"><span>Segunda colocada</span><span>18,8%</span></div><div class="tr"><div class="fl" style="width:53%"></div></div></div>
+        <div class="dbar"><div class="t"><span class="r">Entrante asiático · fora das estatísticas</span><span class="r">11,1%</span></div><div class="tr"><div class="fl y" style="width:31%"></div></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- METODOLOGIA -->
+  <section id="metodologia">
+    <div class="sec-lb">Por que confiar no número</div>
+    <h2>Metodologia aberta, cobertura declarada</h2>
+    <p class="sec-lead">Quem vende dado e esconde a origem está vendendo opinião. Cada número da plataforma mostra a fonte, o recorte e a fatia de mercado que enxerga.</p>
+    <div class="trust">
+      <div class="tc"><h4>Fonte primária rastreável</h4><p>Contratação pública oficial, importação por NCM e financiamento de máquina. Cada linha volta até o documento de origem.</p></div>
+      <div class="tc"><h4>Cobertura explícita por recorte</h4><p>Informamos qual parcela do mercado cada categoria e região enxerga. Amostra é chamada de amostra.</p></div>
+      <div class="tc"><h4>Reconciliação setorial</h4><p>Totais confrontados com as séries públicas do setor. Divergências são mostradas com a explicação.</p></div>
+      <div class="tc"><h4>Origem limpa</h4><p>Sem informação protegida por sigilo fiscal e sem base de terceiro sem licença. Conformidade desde a coleta.</p></div>
+    </div>
+  </section>
+
+  <!-- PLANOS -->
+  <section id="planos">
+    <div class="center">
+      <div class="sec-lb">Assinatura</div>
+      <h2>Planos por amplitude de cobertura</h2>
+      <p class="sec-lead">Contrato anual. Usuários ilimitados dentro da empresa. Implantação em 15 dias, sem integração com seus sistemas.</p>
+    </div>
+
+    <div class="plans">
+      <div class="plan">
+        <div class="nm">Territorial</div>
+        <div class="pr"><span class="v">R$ 3.900</span><span class="u">/mês</span></div>
+        <div class="de">Para quem quer validar em uma praça antes de escalar.</div>
+        <ul>
+          <li>1 estado, 2 categorias de máquina</li>
+          <li>Participação e território</li>
+          <li>Frota instalada da sua marca</li>
+          <li>Atualização mensal</li>
+          <li>Exportação em planilha</li>
+        </ul>
+        <div class="go"><a href="#" class="btn btn-s">Falar com vendas</a></div>
+      </div>
+
+      <div class="plan hi">
+        <span class="badge">Mais assinado</span>
+        <div class="nm">Nacional</div>
+        <div class="pr"><span class="v">R$ 9.800</span><span class="u">/mês</span></div>
+        <div class="de">Cobertura completa para gestão de marca e rede.</div>
+        <ul>
+          <li>27 estados, todas as categorias</li>
+          <li>Todos os módulos, incluindo rede de dealers</li>
+          <li>Alertas de entrante e queda de share</li>
+          <li>Atualização diária</li>
+          <li>Relatório executivo mensal</li>
+          <li>Gerente de conta dedicado</li>
+        </ul>
+        <div class="go"><a href="#" class="btn btn-p">Agendar demonstração</a></div>
+      </div>
+
+      <div class="plan">
+        <div class="nm">Corporativo</div>
+        <div class="pr"><span class="v">Sob consulta</span></div>
+        <div class="de">Para grupos com múltiplas marcas e ambiente de dados próprio.</div>
+        <ul>
+          <li>Tudo do plano Nacional</li>
+          <li>API para integração com seu BI</li>
+          <li>Múltiplas marcas no mesmo contrato</li>
+          <li>Recortes e estudos sob demanda</li>
+          <li>Histórico estendido</li>
+          <li>Suporte prioritário</li>
+        </ul>
+        <div class="go"><a href="#" class="btn btn-s">Falar com vendas</a></div>
+      </div>
+    </div>
+
+    <p class="plans-note">Toda assinatura começa com um diagnóstico da sua marca em uma categoria, sem custo, para você conferir se o retrato bate com o que já sabe.</p>
+  </section>
+
+  <!-- FINAL -->
+  <div class="final">
+    <div class="fbox">
+      <h2>Veja seu share antes de assinar</h2>
+      <p>Escolha uma categoria e um estado. Entregamos o mapa de participação da sua marca com os concorrentes nomeados. Se o número não bater com o que você já sabe, queremos ouvir — é assim que calibramos.</p>
+      <div class="cta">
+        <a href="#" class="btn btn-y">Solicitar diagnóstico gratuito</a>
+        <a href="#" class="btn" style="background:transparent;color:#fff;border:1px solid #4a4a46">Agendar demonstração</a>
+      </div>
+      <p class="nt">Sem contrato e sem cartão para o diagnóstico.</p>
+    </div>
+  </div>
+
+  <footer><div class="ft">
+    <span><b>Pesados.ID</b> · Inteligência de mercado para equipamento pesado</span>
+    <span>Uma empresa BPA Ventures</span>
+  </div></footer>
+
+</div>
+</body>
+</html>

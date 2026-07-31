@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light">
+<meta name="supported-color-schemes" content="light">
+<title>Painel de Inteligência · Equipamento Pesado</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    color-scheme:light only;
+    --obsidiana:#111111;
+    --azul:#2563EB;
+    --azul-soft:#eaf0ff;
+    --azul-line:#cfdcff;
+    --offwhite:#F8F6F1;
+    --paper:#ffffff;
+    --ink70:#37373a;
+    --ink45:#6c6a63;
+    --ink25:#a9a69c;
+    --line:#e4e0d5;
+    --line2:#efece3;
+    --alerta:#9a5b1a;
+    --alerta-soft:#fdf2e6;
+    --pos:#1f7a4d;
+    --pos-soft:#e7f4ec;
+    --neg:#b3261e;
+    --neg-soft:#fbeceb;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{background:#F8F6F1 !important;-webkit-text-size-adjust:100%}
+  body{
+    font-family:'Inter',system-ui,sans-serif;
+    background:#F8F6F1 !important;
+    color:var(--obsidiana);
+    line-height:1.45;
+    font-variant-numeric:tabular-nums;
+    font-size:14px;
+  }
+  .app{background:#F8F6F1;min-height:100vh;padding:16px}
+  .shell{max-width:1180px;margin:0 auto;background:var(--paper);
+    border:1px solid var(--line);border-radius:18px;overflow:hidden;
+    box-shadow:0 1px 3px rgba(17,17,17,.04),0 12px 34px -18px rgba(17,17,17,.16)}
+
+  /* ===== TOP BAR ===== */
+  .topbar{display:flex;align-items:center;justify-content:space-between;gap:16px;
+    padding:14px 20px;border-bottom:1px solid var(--line);background:var(--paper);flex-wrap:wrap}
+  .brand{display:flex;align-items:center;gap:11px}
+  .logo{width:30px;height:30px;border-radius:8px;background:var(--obsidiana);
+    display:grid;place-items:center;flex-shrink:0}
+  .logo span{color:#fff;font-weight:800;font-size:13px;letter-spacing:-.03em}
+  .brand .t{font-size:15px;font-weight:700;letter-spacing:-.02em;line-height:1.15}
+  .brand .s{font-size:10.5px;color:var(--ink25);font-weight:500;letter-spacing:.04em}
+  .acct{display:flex;align-items:center;gap:10px}
+  .acct .who{text-align:right}
+  .acct .who .n{font-size:12.5px;font-weight:600}
+  .acct .who .p{font-size:10.5px;color:var(--ink25)}
+  .av{width:30px;height:30px;border-radius:50%;background:var(--azul-soft);
+    border:1px solid var(--azul-line);display:grid;place-items:center;
+    font-size:11.5px;font-weight:700;color:var(--azul)}
+
+  /* ===== FILTER BAR ===== */
+  .filters{display:flex;gap:8px;padding:12px 20px;border-bottom:1px solid var(--line);
+    background:var(--offwhite);flex-wrap:wrap;align-items:center}
+  .fl{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--ink25);margin-right:2px}
+  .sel{position:relative}
+  select{appearance:none;font-family:inherit;font-size:12.5px;font-weight:600;color:var(--obsidiana);
+    background:var(--paper);border:1px solid var(--line);border-radius:8px;
+    padding:7px 26px 7px 11px;cursor:pointer;outline:none}
+  select:hover{border-color:var(--ink25)}
+  .sel::after{content:"";position:absolute;right:10px;top:50%;transform:translateY(-60%);
+    width:5px;height:5px;border-right:1.5px solid var(--ink45);border-bottom:1.5px solid var(--ink45);
+    transform:translateY(-70%) rotate(45deg);pointer-events:none}
+  .spacer{flex:1}
+  .btn-exp{font-family:inherit;font-size:12px;font-weight:600;color:var(--azul);
+    background:var(--paper);border:1px solid var(--azul-line);border-radius:8px;
+    padding:7px 13px;cursor:pointer}
+  .btn-exp:hover{background:var(--azul-soft)}
+
+  /* ===== TABS ===== */
+  .tabs{display:flex;gap:0;padding:0 20px;border-bottom:1px solid var(--line);background:var(--paper);
+    overflow-x:auto}
+  .tab{font-family:inherit;font-size:13px;font-weight:600;color:var(--ink45);
+    background:none;border:none;padding:13px 15px;cursor:pointer;white-space:nowrap;
+    border-bottom:2px solid transparent;margin-bottom:-1px}
+  .tab:hover{color:var(--obsidiana)}
+  .tab.on{color:var(--obsidiana);border-bottom-color:var(--azul)}
+  .tab .badge{display:inline-block;font-size:10px;font-weight:700;background:var(--alerta);
+    color:#fff;border-radius:100px;padding:1px 6px;margin-left:6px;vertical-align:1px}
+
+  /* ===== BODY ===== */
+  .body{padding:22px 20px 26px;background:var(--offwhite)}
+  .pane{display:none}
+  .pane.on{display:block}
+
+  /* KPI */
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px}
+  .kpi{background:var(--paper);border:1px solid var(--line);border-radius:13px;padding:15px 15px 13px}
+  .kpi .l{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink25)}
+  .kpi .n{font-size:25px;font-weight:800;letter-spacing:-.035em;margin-top:8px;line-height:1}
+  .kpi .d{font-size:11.5px;font-weight:600;margin-top:7px;display:inline-flex;align-items:center;gap:4px;
+    padding:2px 7px;border-radius:5px}
+  .d.up{background:var(--pos-soft);color:var(--pos)}
+  .d.down{background:var(--neg-soft);color:var(--neg)}
+  .d.flat{background:var(--offwhite);color:var(--ink45)}
+
+  /* CARD */
+  .card{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:19px 19px 17px;margin-bottom:14px}
+  .card-h{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:4px}
+  .card-h h3{font-size:15px;font-weight:700;letter-spacing:-.015em}
+  .card-h .hint{font-size:11.5px;color:var(--ink25);font-weight:500}
+  .card-sub{font-size:12.5px;color:var(--ink45);margin-bottom:17px}
+
+  .grid2{display:grid;grid-template-columns:1.35fr 1fr;gap:14px}
+
+  /* BARS */
+  .row{margin-bottom:14px}
+  .row:last-child{margin-bottom:2px}
+  .row-top{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:5px}
+  .nm{font-size:13.5px;font-weight:600;letter-spacing:-.01em;display:flex;align-items:center;gap:7px}
+  .nm .mt{font-size:11px;font-weight:500;color:var(--ink25)}
+  .pc{font-size:13.5px;font-weight:700;white-space:nowrap;display:flex;align-items:center;gap:8px}
+  .delta{font-size:10.5px;font-weight:700;padding:1px 6px;border-radius:4px}
+  .delta.up{background:var(--pos-soft);color:var(--pos)}
+  .delta.down{background:var(--neg-soft);color:var(--neg)}
+  .track{height:8px;background:var(--offwhite);border-radius:100px;overflow:hidden}
+  .fill{height:100%;border-radius:100px;background:var(--azul);transition:width .5s cubic-bezier(.4,0,.2,1)}
+  .fill.me{background:var(--obsidiana)}
+  .fill.dim{background:var(--ink25)}
+  .fill.warn{background:var(--alerta)}
+  .youtag{font-size:9.5px;font-weight:800;letter-spacing:.07em;background:var(--obsidiana);
+    color:#fff;padding:2px 6px;border-radius:4px}
+
+  /* MINI LINE CHART */
+  .chartwrap{padding-top:4px}
+  svg{display:block;width:100%;height:auto}
+  .lg{display:flex;gap:14px;margin-top:12px;flex-wrap:wrap}
+  .lg span{font-size:11.5px;font-weight:600;color:var(--ink45);display:flex;align-items:center;gap:6px}
+  .lg i{width:16px;height:3px;border-radius:2px;display:inline-block;font-style:normal}
+
+  /* REGION LIST */
+  .reg{display:flex;justify-content:space-between;align-items:center;gap:10px;
+    padding:9px 0;border-bottom:1px solid var(--line2)}
+  .reg:last-child{border-bottom:none}
+  .reg .rn{font-size:13px;font-weight:600}
+  .reg .rn small{display:block;font-size:11px;font-weight:500;color:var(--ink25);margin-top:1px}
+  .reg .rv{text-align:right;white-space:nowrap}
+  .reg .rv .v{font-size:13.5px;font-weight:700}
+  .reg .rv .c{font-size:10.5px;font-weight:600;margin-top:2px}
+  .c.up{color:var(--pos)} .c.down{color:var(--neg)} .c.flat{color:var(--ink25)}
+
+  /* TABLE */
+  table{width:100%;border-collapse:collapse}
+  th{font-size:10px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--ink25);
+    text-align:left;padding:0 10px 9px;border-bottom:1px solid var(--line)}
+  th.r,td.r{text-align:right}
+  td{font-size:13px;padding:11px 10px;border-bottom:1px solid var(--line2);color:var(--ink70)}
+  tr:last-child td{border-bottom:none}
+  td.strong{font-weight:600;color:var(--obsidiana)}
+  tr.mine{background:var(--offwhite)}
+  .pill{font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:5px;display:inline-block}
+  .pill.b{background:var(--azul-soft);color:var(--azul);border:1px solid var(--azul-line)}
+  .pill.w{background:var(--alerta-soft);color:var(--alerta)}
+  .pill.g{background:var(--pos-soft);color:var(--pos)}
+  .pill.n{background:var(--offwhite);color:var(--ink45);border:1px solid var(--line)}
+
+  /* ALERTS */
+  .alert{display:flex;gap:13px;padding:15px;border-radius:12px;margin-bottom:10px;
+    border:1px solid var(--line);background:var(--paper)}
+  .alert.hot{border-color:#e8d3ba;background:var(--alerta-soft)}
+  .alert .ic{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;flex-shrink:0;
+    font-size:14px;font-weight:800}
+  .alert.hot .ic{background:var(--alerta);color:#fff}
+  .alert.info .ic{background:var(--azul-soft);color:var(--azul);border:1px solid var(--azul-line)}
+  .alert .tx h4{font-size:13.5px;font-weight:700;letter-spacing:-.01em}
+  .alert .tx p{font-size:12.5px;color:var(--ink70);margin-top:4px;max-width:80ch}
+  .alert .tx p b{font-weight:600;color:var(--obsidiana)}
+  .alert .tx .when{font-size:10.5px;color:var(--ink25);font-weight:600;margin-top:6px;
+    text-transform:uppercase;letter-spacing:.07em}
+
+  /* FOOT NOTE */
+  .fnote{font-size:11.5px;color:var(--ink25);padding:14px 20px;border-top:1px solid var(--line);
+    background:var(--paper);display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+  .fnote b{color:var(--ink45);font-weight:600}
+
+  @media(max-width:900px){
+    .grid2{grid-template-columns:1fr}
+    .kpis{grid-template-columns:repeat(2,1fr)}
+  }
+  @media(max-width:560px){
+    .app{padding:8px}
+    .body{padding:16px 13px 20px}
+    .topbar,.filters,.tabs{padding-left:13px;padding-right:13px}
+    table{font-size:12px}
+    td,th{padding-left:6px;padding-right:6px}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+<div class="shell">
+
+  <!-- TOP -->
+  <div class="topbar">
+    <div class="brand">
+      <div class="logo"><span>IP</span></div>
+      <div>
+        <div class="t">Índice Pesado</div>
+        <div class="s">INTELIGÊNCIA DE MERCADO · EQUIPAMENTO</div>
+      </div>
+    </div>
+    <div class="acct">
+      <div class="who">
+        <div class="n">Grupo Valence</div>
+        <div class="p">Plano Regional · MG</div>
+      </div>
+      <div class="av">GV</div>
+    </div>
+  </div>
+
+  <!-- FILTERS -->
+  <div class="filters">
+    <span class="fl">Filtros</span>
+    <div class="sel"><select><option>Retroescavadeira</option><option>Escavadeira hidráulica</option><option>Pá carregadeira</option><option>Motoniveladora</option><option>Todas as categorias</option></select></div>
+    <div class="sel"><select><option>Minas Gerais</option><option>Sul de Minas</option><option>Triângulo</option><option>Zona da Mata</option><option>Norte de Minas</option></select></div>
+    <div class="sel"><select><option>Últimos 12 meses</option><option>Últimos 6 meses</option><option>2026 YTD</option><option>2025</option></select></div>
+    <div class="sel"><select><option>Compra pública</option><option>Compra privada</option><option>Consolidado</option></select></div>
+    <div class="spacer"></div>
+    <button class="btn-exp">Exportar</button>
+  </div>
+
+  <!-- TABS -->
+  <div class="tabs">
+    <button class="tab on" data-p="visao">Visão geral</button>
+    <button class="tab" data-p="conc">Concorrência</button>
+    <button class="tab" data-p="frota">Frota instalada</button>
+    <button class="tab" data-p="radar">Radar de oportunidade<span class="badge">7</span></button>
+  </div>
+
+  <div class="body">
+
+    <!-- ============ PANE 1 ============ -->
+    <div class="pane on" id="visao">
+      <div class="kpis">
+        <div class="kpi">
+          <div class="l">Meu share</div>
+          <div class="n">10,7%</div>
+          <div class="d down">▼ 1,8 p.p. vs ano anterior</div>
+        </div>
+        <div class="kpi">
+          <div class="l">Mercado total</div>
+          <div class="n">168 un</div>
+          <div class="d up">▲ 12% no período</div>
+        </div>
+        <div class="kpi">
+          <div class="l">Ticket médio mercado</div>
+          <div class="n">R$ 424 mil</div>
+          <div class="d down">▼ 3,1% pressão de preço</div>
+        </div>
+        <div class="kpi">
+          <div class="l">Municípios sem minha presença</div>
+          <div class="n">90</div>
+          <div class="d flat">de 104 com compra</div>
+        </div>
+      </div>
+
+      <div class="grid2">
+        <div class="card">
+          <div class="card-h">
+            <h3>Participação de mercado</h3>
+            <span class="hint">unidades adjudicadas</span>
+          </div>
+          <p class="card-sub">Minas Gerais · retroescavadeira · últimos 12 meses</p>
+
+          <div class="row">
+            <div class="row-top">
+              <div class="nm">BAMAQ <span class="mt">81 un · 48 municípios</span></div>
+              <div class="pc"><span class="delta up">+4,2</span>48,2%</div>
+            </div>
+            <div class="track"><div class="fill" style="width:100%"></div></div>
+          </div>
+          <div class="row">
+            <div class="row-top">
+              <div class="nm">BRASIF <span class="mt">19 un · 14 municípios</span></div>
+              <div class="pc"><span class="delta down">−0,9</span>11,3%</div>
+            </div>
+            <div class="track"><div class="fill" style="width:23.4%"></div></div>
+          </div>
+          <div class="row">
+            <div class="row-top">
+              <div class="nm">VALENCE <span class="youtag">VOCÊ</span> <span class="mt">18 un · 14 municípios</span></div>
+              <div class="pc"><span class="delta down">−1,8</span>10,7%</div>
+            </div>
+            <div class="track"><div class="fill me" style="width:22.2%"></div></div>
+          </div>
+          <div class="row">
+            <div class="row-top">
+              <div class="nm">TRIAMA NORTE <span class="mt">9 un · 8 municípios</span></div>
+              <div class="pc"><span class="delta up">+1,1</span>5,4%</div>
+            </div>
+            <div class="track"><div class="fill dim" style="width:11.2%"></div></div>
+          </div>
+          <div class="row">
+            <div class="row-top">
+              <div class="nm">XCMG <span class="mt">venda direta · sem dealer</span></div>
+              <div class="pc"><span class="delta up">+2,4</span>2,4%</div>
+            </div>
+            <div class="track"><div class="fill warn" style="width:5%"></div></div>
+          </div>
+          <div class="row">
+            <div class="row-top">
+              <div class="nm">Demais <span class="mt">18 empresas</span></div>
+              <div class="pc">22,0%</div>
+            </div>
+            <div class="track"><div class="fill dim" style="width:45.6%"></div></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-h"><h3>Evolução do share</h3><span class="hint">trimestral</span></div>
+          <p class="card-sub">Seu share contra os dois maiores</p>
+          <div class="chartwrap">
+            <svg viewBox="0 0 320 170" xmlns="http://www.w3.org/2000/svg">
+              <line x1="30" y1="10" x2="310" y2="10" stroke="#efece3" stroke-width="1"/>
+              <line x1="30" y1="50" x2="310" y2="50" stroke="#efece3" stroke-width="1"/>
+              <line x1="30" y1="90" x2="310" y2="90" stroke="#efece3" stroke-width="1"/>
+              <line x1="30" y1="130" x2="310" y2="130" stroke="#efece3" stroke-width="1"/>
+              <text x="24" y="14" text-anchor="end" font-size="8" fill="#a9a69c" font-family="Inter">50%</text>
+              <text x="24" y="54" text-anchor="end" font-size="8" fill="#a9a69c" font-family="Inter">35%</text>
+              <text x="24" y="94" text-anchor="end" font-size="8" fill="#a9a69c" font-family="Inter">20%</text>
+              <text x="24" y="134" text-anchor="end" font-size="8" fill="#a9a69c" font-family="Inter">5%</text>
+
+              <!-- BAMAQ -->
+              <polyline points="45,30 111,24 177,18 243,14 300,11" fill="none" stroke="#2563EB" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+              <!-- BRASIF -->
+              <polyline points="45,112 111,110 177,114 243,116 300,118" fill="none" stroke="#a9a69c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <!-- VALENCE -->
+              <polyline points="45,105 111,108 177,113 243,119 300,122" fill="none" stroke="#111111" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+              <circle cx="300" cy="122" r="3.4" fill="#111111"/>
+              <circle cx="300" cy="11" r="3" fill="#2563EB"/>
+
+              <text x="45" y="152" text-anchor="middle" font-size="8.5" fill="#a9a69c" font-family="Inter">T2/25</text>
+              <text x="111" y="152" text-anchor="middle" font-size="8.5" fill="#a9a69c" font-family="Inter">T3/25</text>
+              <text x="177" y="152" text-anchor="middle" font-size="8.5" fill="#a9a69c" font-family="Inter">T4/25</text>
+              <text x="243" y="152" text-anchor="middle" font-size="8.5" fill="#a9a69c" font-family="Inter">T1/26</text>
+              <text x="300" y="152" text-anchor="middle" font-size="8.5" fill="#a9a69c" font-family="Inter">T2/26</text>
+            </svg>
+          </div>
+          <div class="lg">
+            <span><i style="background:#2563EB"></i>BAMAQ</span>
+            <span><i style="background:#111111"></i>Valence</span>
+            <span><i style="background:#a9a69c"></i>BRASIF</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-h"><h3>Onde o mercado está</h3><span class="hint">unidades por região · variação vs período anterior</span></div>
+        <p class="card-sub">Sua presença marcada em azul</p>
+        <div class="reg"><div class="rn">Sul de Minas <small>Poços de Caldas, Machado, Três Corações, Ouro Fino</small></div><div class="rv"><div class="v">47 un</div><div class="c up">▲ 18%</div></div></div>
+        <div class="reg"><div class="rn">Zona da Mata <small>Ubá, Guidoval, Ewbank da Câmara, Piraúba</small></div><div class="rv"><div class="v">31 un</div><div class="c up">▲ 9%</div></div></div>
+        <div class="reg"><div class="rn">Triângulo / Alto Paranaíba <small>Patrocínio, Perdizes, Araporã, Iraí de Minas</small></div><div class="rv"><div class="v">28 un</div><div class="c flat">— 1%</div></div></div>
+        <div class="reg"><div class="rn">Vale do Rio Doce <small>Resplendor, Açucena, Conselheiro Pena</small></div><div class="rv"><div class="v">22 un</div><div class="c up">▲ 14%</div></div></div>
+        <div class="reg"><div class="rn">Norte de Minas <small>Janaúba, Montes Claros, Jequitaí</small></div><div class="rv"><div class="v">19 un</div><div class="c down">▼ 6%</div></div></div>
+        <div class="reg"><div class="rn">Central / Oeste <small>Oliveira, Itaúna, Córrego Fundo, Papagaios</small></div><div class="rv"><div class="v">21 un</div><div class="c up">▲ 7%</div></div></div>
+      </div>
+    </div>
+
+    <!-- ============ PANE 2 ============ -->
+    <div class="pane" id="conc">
+      <div class="card">
+        <div class="card-h"><h3>Ranking de concorrentes</h3><span class="hint">MG · retroescavadeira · 12 meses</span></div>
+        <p class="card-sub">Cada linha é uma concessionária ou fabricante com venda registrada</p>
+        <table>
+          <thead><tr>
+            <th>Concessionária</th><th>Marca</th><th class="r">Unidades</th>
+            <th class="r">Faturamento</th><th class="r">Municípios</th><th class="r">Ticket médio</th><th class="r">Share</th>
+          </tr></thead>
+          <tbody>
+            <tr><td class="strong">BAMAQ</td><td><span class="pill n">a mapear</span></td><td class="r">81</td><td class="r">R$ 35,5 mi</td><td class="r">48</td><td class="r">R$ 438 mil</td><td class="r strong">48,2%</td></tr>
+            <tr><td class="strong">BRASIF</td><td><span class="pill n">a mapear</span></td><td class="r">19</td><td class="r">R$ 8,5 mi</td><td class="r">14</td><td class="r">R$ 449 mil</td><td class="r strong">11,3%</td></tr>
+            <tr class="mine"><td class="strong">VALENCE <span class="youtag">VOCÊ</span></td><td><span class="pill b">JCB</span></td><td class="r">18</td><td class="r">R$ 7,9 mi</td><td class="r">14</td><td class="r">R$ 438 mil</td><td class="r strong">10,7%</td></tr>
+            <tr><td class="strong">TRIAMA NORTE</td><td><span class="pill n">a mapear</span></td><td class="r">9</td><td class="r">R$ 3,3 mi</td><td class="r">8</td><td class="r">R$ 365 mil</td><td class="r strong">5,4%</td></tr>
+            <tr><td class="strong">FAROL COMERCIAL</td><td><span class="pill n">a mapear</span></td><td class="r">5</td><td class="r">R$ 2,1 mi</td><td class="r">1</td><td class="r">R$ 422 mil</td><td class="r strong">3,0%</td></tr>
+            <tr><td class="strong">ECOSOL</td><td><span class="pill n">a mapear</span></td><td class="r">4</td><td class="r">R$ 1,7 mi</td><td class="r">1</td><td class="r">R$ 418 mil</td><td class="r strong">2,4%</td></tr>
+            <tr><td class="strong">XCMG BRASIL</td><td><span class="pill w">XCMG · direto</span></td><td class="r">4</td><td class="r">R$ 1,2 mi</td><td class="r">1</td><td class="r">R$ 300 mil</td><td class="r strong">2,4%</td></tr>
+            <tr><td class="strong">CENTRO OESTE</td><td><span class="pill n">a mapear</span></td><td class="r">3</td><td class="r">R$ 1,2 mi</td><td class="r">3</td><td class="r">R$ 393 mil</td><td class="r strong">1,8%</td></tr>
+            <tr><td class="strong">CUMMINS MINAS</td><td><span class="pill n">a mapear</span></td><td class="r">3</td><td class="r">R$ 1,0 mi</td><td class="r">3</td><td class="r">R$ 335 mil</td><td class="r strong">1,8%</td></tr>
+            <tr><td class="strong">Demais (14)</td><td><span class="pill n">—</span></td><td class="r">22</td><td class="r">R$ 8,8 mi</td><td class="r">18</td><td class="r">R$ 400 mil</td><td class="r strong">13,0%</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <div class="card-h"><h3>Onde você perdeu negócio</h3><span class="hint">processos em que você não venceu</span></div>
+        <p class="card-sub">Município, quem levou e diferença de preço</p>
+        <table>
+          <thead><tr><th>Município</th><th>Vencedor</th><th class="r">Valor</th><th class="r">vs seu ticket</th><th>Situação</th></tr></thead>
+          <tbody>
+            <tr><td class="strong">Poços de Caldas</td><td>B&amp;F Negócios</td><td class="r">R$ 550.000</td><td class="r">+25%</td><td><span class="pill n">não participou</span></td></tr>
+            <tr><td class="strong">Lagoa Grande</td><td>BAMAQ</td><td class="r">R$ 535.000</td><td class="r">+22%</td><td><span class="pill n">não participou</span></td></tr>
+            <tr><td class="strong">Vazante</td><td>Autloc</td><td class="r">R$ 490.000</td><td class="r">+12%</td><td><span class="pill w">perdeu no preço</span></td></tr>
+            <tr><td class="strong">Montes Claros</td><td>XCMG direto</td><td class="r">R$ 300.000</td><td class="r">−31%</td><td><span class="pill w">preço agressivo</span></td></tr>
+            <tr><td class="strong">Janaúba</td><td>BAMAQ</td><td class="r">R$ 450.000</td><td class="r">+3%</td><td><span class="pill w">perdeu no preço</span></td></tr>
+            <tr><td class="strong">Espera Feliz</td><td>BAMAQ</td><td class="r">R$ 405.650</td><td class="r">−7%</td><td><span class="pill n">não participou</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ============ PANE 3 ============ -->
+    <div class="pane" id="frota">
+      <div class="kpis">
+        <div class="kpi"><div class="l">Frota mapeada em MG</div><div class="n">207</div><div class="d flat">máquinas identificadas</div></div>
+        <div class="kpi"><div class="l">Sua marca na frota</div><div class="n">18,8%</div><div class="d up">▲ 2ª colocada</div></div>
+        <div class="kpi"><div class="l">Municípios com sua marca</div><div class="n">25</div><div class="d flat">de 63 mapeados</div></div>
+        <div class="kpi"><div class="l">Potencial de peças</div><div class="n">R$ 6,1 mi</div><div class="d up">▲ estimativa anual</div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-h"><h3>Frota instalada por marca</h3><span class="hint">revelada por licitação de peça e manutenção</span></div>
+        <p class="card-sub">Quando a prefeitura compra pneu ou turbina, ela declara a marca da máquina que já tem</p>
+        <div class="row"><div class="row-top"><div class="nm">NEW HOLLAND <span class="mt">28 municípios</span></div><div class="pc">35,3%</div></div><div class="track"><div class="fill" style="width:100%"></div></div></div>
+        <div class="row"><div class="row-top"><div class="nm">JCB <span class="youtag">VOCÊ</span> <span class="mt">25 municípios</span></div><div class="pc">18,8%</div></div><div class="track"><div class="fill me" style="width:53%"></div></div></div>
+        <div class="row"><div class="row-top"><div class="nm">RANDON <span class="mt">9 municípios</span></div><div class="pc">13,0%</div></div><div class="track"><div class="fill dim" style="width:37%"></div></div></div>
+        <div class="row"><div class="row-top"><div class="nm">CASE <span class="mt">8 municípios</span></div><div class="pc">12,1%</div></div><div class="track"><div class="fill dim" style="width:34%"></div></div></div>
+        <div class="row"><div class="row-top"><div class="nm">XCMG <span class="mt">16 municípios</span></div><div class="pc">11,1%</div></div><div class="track"><div class="fill warn" style="width:31%"></div></div></div>
+        <div class="row"><div class="row-top"><div class="nm">CATERPILLAR <span class="mt">5 municípios</span></div><div class="pc">2,9%</div></div><div class="track"><div class="fill dim" style="width:8%"></div></div></div>
+      </div>
+
+      <div class="alert info">
+        <div class="ic">P</div>
+        <div class="tx">
+          <h4>Oportunidade de pós-venda</h4>
+          <p>Existem <b>25 municípios com máquina da sua marca rodando</b> e nenhum contrato de peças ativo com você. Frota instalada é demanda recorrente — cada máquina consome peça e serviço por 8 a 12 anos.</p>
+          <div class="when">Atualizado hoje</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-h"><h3>Frota da sua marca sem contrato de peças</h3><span class="hint">alvos de prospecção</span></div>
+        <p class="card-sub">Município, modelo identificado e ano da máquina</p>
+        <table>
+          <thead><tr><th>Município</th><th>Modelo</th><th class="r">Ano</th><th class="r">Idade</th><th>Sinal</th></tr></thead>
+          <tbody>
+            <tr><td class="strong">São Lourenço</td><td>Retro 3CX</td><td class="r">2018</td><td class="r">8 anos</td><td><span class="pill g">revisão geral aberta</span></td></tr>
+            <tr><td class="strong">Conceição dos Ouros</td><td>Retro 3CX</td><td class="r">2019</td><td class="r">7 anos</td><td><span class="pill g">comprou peça 2x/ano</span></td></tr>
+            <tr><td class="strong">Leopoldina</td><td>Retro 214</td><td class="r">2017</td><td class="r">9 anos</td><td><span class="pill w">troca provável</span></td></tr>
+            <tr><td class="strong">Bom Jesus da Penha</td><td>Retro 3CX</td><td class="r">2020</td><td class="r">6 anos</td><td><span class="pill n">manutenção regular</span></td></tr>
+            <tr><td class="strong">Lagoa da Prata</td><td>Retro 3CX</td><td class="r">2016</td><td class="r">10 anos</td><td><span class="pill w">troca provável</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ============ PANE 4 ============ -->
+    <div class="pane" id="radar">
+      <div class="alert hot">
+        <div class="ic">!</div>
+        <div class="tx">
+          <h4>Licitação aberta em município onde você não vende</h4>
+          <p>Prefeitura de <b>Patrocínio</b> abriu pregão para 1 retroescavadeira 4x4, valor de referência <b>R$ 465.000</b>. A BAMAQ venceu as duas últimas compras deste município. Propostas até <b>28/07</b>.</p>
+          <div class="when">Detectado há 2 horas</div>
+        </div>
+      </div>
+
+      <div class="alert hot">
+        <div class="ic">!</div>
+        <div class="tx">
+          <h4>Concorrente entrou na sua região</h4>
+          <p>A <b>XCMG</b> registrou primeira venda direta no Norte de Minas, com ticket 31% abaixo da média do mercado. Já aparece na frota instalada de 16 municípios.</p>
+          <div class="when">Esta semana</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-h"><h3>Licitações abertas · retroescavadeira</h3><span class="hint">MG · próximos 30 dias</span></div>
+        <p class="card-sub">Cruzadas com seu histórico de participação</p>
+        <table>
+          <thead><tr><th>Município</th><th class="r">Qtd</th><th class="r">Referência</th><th class="r">Prazo</th><th>Histórico</th></tr></thead>
+          <tbody>
+            <tr><td class="strong">Patrocínio</td><td class="r">1</td><td class="r">R$ 465.000</td><td class="r">28/07</td><td><span class="pill w">BAMAQ levou 2x</span></td></tr>
+            <tr><td class="strong">Iraí de Minas</td><td class="r">1</td><td class="r">R$ 460.000</td><td class="r">30/07</td><td><span class="pill g">você venceu antes</span></td></tr>
+            <tr><td class="strong">Extrema</td><td class="r">2</td><td class="r">R$ 440.000</td><td class="r">02/08</td><td><span class="pill w">BAMAQ levou 3x</span></td></tr>
+            <tr><td class="strong">Guanhães</td><td class="r">1</td><td class="r">R$ 380.000</td><td class="r">05/08</td><td><span class="pill n">sem histórico seu</span></td></tr>
+            <tr><td class="strong">Corinto</td><td class="r">1</td><td class="r">R$ 399.000</td><td class="r">08/08</td><td><span class="pill w">BAMAQ levou 2x</span></td></tr>
+            <tr><td class="strong">Três Pontas</td><td class="r">1</td><td class="r">R$ 450.000</td><td class="r">11/08</td><td><span class="pill n">sem histórico seu</span></td></tr>
+            <tr><td class="strong">Papagaios</td><td class="r">2</td><td class="r">R$ 411.550</td><td class="r">14/08</td><td><span class="pill w">BAMAQ levou 1x</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="fnote">
+    <span><b>Fonte:</b> PNCP · dado público de contratação · atualização diária</span>
+    <span>Mockup de produto · BPA Ventures</span>
+  </div>
+
+</div>
+</div>
+
+<script>
+  document.querySelectorAll('.tab').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      document.querySelectorAll('.tab').forEach(function(b){ b.classList.remove('on'); });
+      document.querySelectorAll('.pane').forEach(function(p){ p.classList.remove('on'); });
+      btn.classList.add('on');
+      var el = document.getElementById(btn.dataset.p);
+      if(el){ el.classList.add('on'); }
+    });
+  });
+</script>
+</body>
+</html>
