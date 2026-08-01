@@ -425,7 +425,11 @@ def crawlear_pncp() -> List[Dict[str, Any]]:
         for termo in config["search_terms"]:
             for uf in ALL_UFS:
                 pagina = 1
+                stop_pagination = False
                 while True:
+                    if stop_pagination:
+                        break
+
                     logger.info(f"[{sigla}] {termo} / {uf} — página {pagina}")
                     data = search_pncp(termo, uf, pagina)
                     total_chamadas += 1
@@ -443,6 +447,13 @@ def crawlear_pncp() -> List[Dict[str, Any]]:
                         cnpj = item_busca.get("orgao_cnpj") or (item_busca.get("orgao", {}) or {}).get("cnpj", "") or item_busca.get("cnpjOrgao", "")
                         ano = item_busca.get("ano") or item_busca.get("anoCompra", 0) or 0
                         seq = item_busca.get("numero_sequencial") or item_busca.get("sequencialCompra", 0) or 0
+
+                        # LIMITAÇÃO DE DATA (ÚLTIMOS 12 MESES)
+                        # A API já retorna ordenado do mais novo para o mais velho.
+                        if ano and int(ano) < 2025:
+                            logger.info(f"[{sigla}] {termo} / {uf} — Registro antigo encontrado (ano {ano}). Interrompendo paginação.")
+                            stop_pagination = True
+                            break
 
                         item_url = item_busca.get("item_url", "")
                         if (not cnpj or not ano or not seq) and item_url:
@@ -469,7 +480,7 @@ def crawlear_pncp() -> List[Dict[str, Any]]:
                         sleep_entre_chamadas()
 
                     # Paginação
-                    if pagina * 100 >= total or len(items) < 100:
+                    if pagina * 100 >= total or len(items) < 100 or stop_pagination:
                         break
                     pagina += 1
                     sleep_entre_chamadas()
