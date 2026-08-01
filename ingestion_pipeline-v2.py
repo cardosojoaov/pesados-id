@@ -438,9 +438,17 @@ def crawlear_pncp() -> List[Dict[str, Any]]:
                         break
 
                     for item_busca in items:
-                        cnpj = (item_busca.get("orgao", {}) or {}).get("cnpj", "") or item_busca.get("cnpjOrgao", "")
-                        ano = item_busca.get("anoCompra", 0) or 0
-                        seq = item_busca.get("sequencialCompra", 0) or 0
+                        cnpj = item_busca.get("orgao_cnpj") or (item_busca.get("orgao", {}) or {}).get("cnpj", "") or item_busca.get("cnpjOrgao", "")
+                        ano = item_busca.get("ano") or item_busca.get("anoCompra", 0) or 0
+                        seq = item_busca.get("numero_sequencial") or item_busca.get("sequencialCompra", 0) or 0
+
+                        item_url = item_busca.get("item_url", "")
+                        if (not cnpj or not ano or not seq) and item_url:
+                            match = re.search(r'/compras/(\d+)/(\d+)/(\d+)', item_url)
+                            if match:
+                                cnpj = cnpj or match.group(1)
+                                ano = ano or int(match.group(2))
+                                seq = seq or int(match.group(3))
 
                         if not cnpj or not ano or not seq:
                             continue
