@@ -215,6 +215,27 @@ def load_category_limits_from_db():
         logger.warning(f"Falha ao carregar limites do banco: {e}. Usando limites estáticos (fallback).")
 
 
+def load_existing_keys() -> set:
+    """Carrega as chaves (cnpj_ano_seq) já existentes no banco para evitar reprocessamento."""
+    existing_keys = set()
+    db_url = get_db_url()
+    if not HAS_PSYCOPG or not db_url:
+        return existing_keys
+    try:
+        conn = psycopg2.connect(db_url)
+        cur = conn.cursor()
+        cur.execute("SELECT cnpj_orgao, ano_compra, sequencial_compra FROM transacao WHERE fonte_id = 'PNCP_API';")
+        rows = cur.fetchall()
+        for r in rows:
+            existing_keys.add(f"{r[0]}_{r[1]}_{r[2]}")
+        cur.close()
+        conn.close()
+        logger.info(f"Carregadas {len(existing_keys)} chaves existentes para carga incremental rápida.")
+    except Exception as e:
+        logger.warning(f"Falha ao carregar chaves existentes: {e}")
+    return existing_keys
+
+
 def determine_record_type(descricao: str) -> str:
     desc = descricao.lower()
     if TIPO_REGEX["PECAS_MANUTENCAO"].search(desc):
@@ -420,8 +441,16 @@ def crawlear_pncp() -> List[Dict[str, Any]]:
     """Loop principal: 8 categorias × 27 UFs com paginação."""
     todos_registros = []
     total_chamadas = 0
+    
+    chaves_existentes = load_existing_keys()
+
+    target_category = os.environ.get("TARGET_CATEGORY")
+    if target_category:
+        logger.info(f"Modo Matriz: Coletando apenas a categoria {target_category}")
 
     for sigla, config in CATEGORIES.items():
+        if target_category and sigla != target_category:
+            continue
         for termo in config["search_terms"]:
             for uf in ALL_UFS:
                 pagina = 1
@@ -464,6 +493,11 @@ def crawlear_pncp() -> List[Dict[str, Any]]:
                                 seq = seq or int(match.group(3))
 
                         if not cnpj or not ano or not seq:
+                            continue
+                        
+                        # CARGA INCREMENTAL: Pular se já estiver no banco
+                        if f"{cnpj}_{ano}_{seq}" in chaves_existentes:
+                            logger.debug(f"Pulando {cnpj}_{ano}_{seq}: Já existe no banco.")
                             continue
 
                         itens_detalhe = fetch_item_details(cnpj, ano, seq)
