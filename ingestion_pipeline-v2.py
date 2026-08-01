@@ -641,23 +641,22 @@ def run_pipeline():
 
     # Tentar crawlear o PNCP real primeiro
     registros = []
-    origem = "fallback offline"
+    origem = "crawler PNCP"
     try:
         logger.info("Tentando conectar à API do PNCP...")
         test = search_pncp("retroescavadeira", "MG", 1)
         if test and (test.get("items") or test.get("data")):
             logger.info("API PNCP respondeu. Iniciando crawler nacional...")
             registros = crawlear_pncp()
-            origem = "crawler PNCP"
         else:
-            logger.warning("API PNCP não retornou dados. Usando fallback offline.")
+            logger.error("API PNCP não retornou dados (timeout ou erro 500). Abortando execução para manter integridade dos dados.")
+            sys.exit(1)
     except Exception as e:
-        logger.warning(f"API PNCP indisponível: {e}. Usando fallback offline.")
+        logger.error(f"API PNCP indisponível: {e}. Abortando execução para manter integridade dos dados.")
+        sys.exit(1)
 
     if not registros:
-        logger.info("Gerando dados de semente offline (piloto MG)...")
-        registros = generate_pilot_seed_data()
-        origem = "semente offline (MG pilot)"
+        logger.warning("Nenhum registro foi retornado pelo PNCP nesta execução.")
 
     # Contagens por estágio do funil
     registros_brutos = len(registros)
