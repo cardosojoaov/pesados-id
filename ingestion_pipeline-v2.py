@@ -321,23 +321,26 @@ def fetch_item_details(cnpj: str, ano: int, sequencial: int) -> Optional[list]:
 
 # ─── Processamento de itens ─────────────────────────────────────────
 
-def processar_item(item: dict, categoria_sigla: str, uf: str) -> Optional[dict]:
+def processar_item(item: dict, categoria_sigla: str, uf: str, objeto_compra: str = "") -> Optional[dict]:
     """Processa um item da API em um registro da transacao."""
     descricao = str(item.get("descricao") or "")
     if not descricao:
         return None
 
-    tipo = determine_record_type(descricao)
+    descricao_completa = f"{objeto_compra} {descricao}"
+    tipo = determine_record_type(descricao_completa)
 
     valor_unitario = 0.0
     try:
-        valor_unitario = float(item.get("valorUnitarioHomologado", 0) or 0)
+        # Fallback para valor estimado caso não tenha o homologado
+        valor_unitario = float(item.get("valorUnitarioHomologado") or item.get("valorUnitarioEstimado") or 0)
     except (ValueError, TypeError):
         pass
 
     quantidade = 0.0
     try:
-        quantidade = float(item.get("quantidadeHomologada", 0) or 0)
+        # Fallback para quantidade normal caso não tenha a homologada
+        quantidade = float(item.get("quantidadeHomologada") or item.get("quantidade") or 0)
     except (ValueError, TypeError):
         pass
 
@@ -363,9 +366,8 @@ def processar_item(item: dict, categoria_sigla: str, uf: str) -> Optional[dict]:
 
     # Filtro de limites dinâmicos por categoria (Apenas para COMPRA_NOVA de máquina real §4.4)
     # Preço: configuração da tabela config_filtros_categoria (fallback estático).
-    # Quantidade: exige valor inteiro positivo e respeita qtd_max da categoria (ex.: 250,5 horas de
-    # serviço nunca passa; escavadeira grande pode ter qtd_max maior que 10).
-    if tipo == "COMPRA_NOVA":
+    # Quantidade: exige valor inteiro positivo e respeita qtd_max da categoria.
+    if tipo == "COMPRA_NOVA" and situacao == "HOMOLOGADO":
         config_cat = CATEGORIES.get(cat_final)
         if config_cat:
             min_p = config_cat.get("min_price")
@@ -507,7 +509,7 @@ def crawlear_pncp() -> List[Dict[str, Any]]:
                             continue
 
                         for item_det in itens_detalhe:
-                            registro = processar_item(item_det, sigla, uf)
+                            registro = processar_item(item_det, sigla, uf, item_busca.get("objetoCompra", ""))
                             if registro:
                                 todos_registros.append(registro)
 
