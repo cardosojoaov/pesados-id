@@ -160,52 +160,15 @@ class FiltroConfigItem(BaseModel):
     qtd_max: Optional[int] = 10
 
 
-# --- HELPER: PILOT DATA BACKUP (GUARANTEES 100% SUCCESS OUT OF THE BOX) ---
-def get_simulated_pilot_data(categoria: str, uf: str) -> Dict[str, Any]:
-    """Generates precise static pilot data matching the MG Pilot spec."""
-    # Only return the full MG Pilot if BHL + MG is requested, otherwise return empty structure
-    if categoria == "BHL" and uf == "MG":
-        return {
-            "kpis": {
-                "total_unidades": 168,
-                "volume_mercado": 71232000.00,
-                "ticket_medio": 424000.00,
-                "municipios_presenca": 104,
-                "cobertura_estimada": 88.5
-            },
-            "brand_shares": [
-                {"marca": "New Holland", "dealer": "BAMAQ", "unidades": 81, "share": 48.2, "is_user": True},
-                {"marca": "CASE", "dealer": "BRASIF", "unidades": 19, "share": 11.3, "is_user": False},
-                {"marca": "JCB", "dealer": "VALENCE", "unidades": 18, "share": 10.7, "is_user": False},
-                {"marca": "NÃO IDENTIFICADA", "dealer": "Outros", "unidades": 50, "share": 29.8, "is_user": False}
-            ],
-            "dealer_shares": [
-                {"dealer": "BAMAQ", "unidades": 81, "share": 48.2, "marca": "New Holland"},
-                {"dealer": "BRASIF", "unidades": 19, "share": 11.3, "marca": "CASE"},
-                {"dealer": "VALENCE", "unidades": 18, "share": 10.7, "marca": "JCB"},
-                {"dealer": "OUTROS/DIRETOS", "unidades": 50, "share": 29.8, "marca": "NÃO IDENTIFICADA"}
-            ],
-            "transactions": [
-                {
-                    "municipio": f"Município Piloto {i:03d}",
-                    "orgao": f"Prefeitura Municipal {i:03d}",
-                    "fornecedor": "BAMAQ MINAS S/A" if i <= 81 else ("BRASIF S.A." if i <= 100 else ("VALENCE EQUIPAMENTOS" if i <= 118 else "XCMG BRASIL")),
-                    "marca": "New Holland" if i <= 81 else ("CASE" if i <= 100 else ("JCB" if i <= 118 else "NÃO IDENTIFICADA")),
-                    "quantidade": 1.0,
-                    "valor_unitario": 424000.00,
-                    "valor_total": 424000.00,
-                    "data": "2025-10-15",
-                    "url": f"https://pncp.gov.br/app/compras/00000000000000/2025/{i}"
-                } for i in range(1, 169)
-            ]
-        }
-    else:
-        return {
-            "kpis": {"total_unidades": 0, "volume_mercado": 0, "ticket_medio": 0, "municipios_presenca": 0, "cobertura_estimada": 0},
-            "brand_shares": [],
-            "dealer_shares": [],
-            "transactions": []
-        }
+# --- HELPER: EMPTY DATA (HONESTY OVER MOCK) ---
+def get_empty_dashboard_data(categoria: str, uf: str) -> Dict[str, Any]:
+    """Returns an empty structure matching the dashboard when no data is found."""
+    return {
+        "kpis": {"total_unidades": 0, "volume_mercado": 0, "ticket_medio": 0, "municipios_presenca": 0, "cobertura_estimada": 0},
+        "brand_shares": [],
+        "dealer_shares": [],
+        "transactions": []
+    }
 
 
 # --- ENDPOINTS ---
@@ -222,8 +185,8 @@ def get_participacao(
     """Retrieves consolidated market share metrics and transaction grid."""
     conn = get_db_connection()
     if not conn:
-        logger.warning("Using Offline Sim/Backup Pilot Fallback layer (No database connection found).")
-        return get_simulated_pilot_data(categoria, uf)
+        logger.warning("No database connection found. Returning empty dataset.")
+        return get_empty_dashboard_data(categoria, uf)
     
     try:
         cur = conn.cursor()
@@ -249,12 +212,6 @@ def get_participacao(
         municipios_presenca = kpi_row[2] if kpi_row else 0
         ticket_medio = float(kpi_row[3]) if kpi_row else 0.0
         
-        # If database query returns empty (e.g. before initial seeding), fallback to simulator to guarantee UX
-        if total_unidades == 0 and categoria == "BHL" and uf == "MG":
-            logger.info("Database is empty. Serving Seed simulation to pass verification.")
-            cur.close()
-            conn.close()
-            return get_simulated_pilot_data(categoria, uf)
 
         # 2. Fetch Brand Shares
         brand_query = """
@@ -345,7 +302,7 @@ def get_participacao(
         
     except Exception as e:
         logger.error(f"Error executing Postgres query: {e}")
-        return get_simulated_pilot_data(categoria, uf)
+        return get_empty_dashboard_data(categoria, uf)
 
 
 @app.get("/api/dashboard/territorio")
@@ -359,7 +316,7 @@ def get_territorio(
     """Retrieves regional rankings and specific market opportunities (SPEC §5)."""
     conn = get_db_connection()
     if not conn:
-        return get_simulated_territorio()
+        return get_empty_territorio()
     try:
         cur = conn.cursor()
         cur.execute("""
@@ -419,7 +376,7 @@ def get_territorio(
         conn.close()
 
         if not top_regions and not opportunities:
-            return get_simulated_territorio()
+            return get_empty_territorio()
 
         return {
             "opportunities": opportunities,
@@ -427,24 +384,13 @@ def get_territorio(
         }
     except Exception as e:
         logger.error(f"Error fetching territorio: {e}")
-        return get_simulated_territorio()
+        return get_empty_territorio()
 
 
-def get_simulated_territorio():
+def get_empty_territorio():
     return {
-        "opportunities": [
-            {"municipio": "Uberlândia", "vendas_totais": 14, "suas_vendas": 0, "principal_concorrente": "BRASIF (CASE)"},
-            {"municipio": "Montes Claros", "vendas_totais": 9, "suas_vendas": 0, "principal_concorrente": "VALENCE (JCB)"},
-            {"municipio": "Juiz de Fora", "vendas_totais": 7, "suas_vendas": 0, "principal_concorrente": "VALENCE (JCB)"},
-            {"municipio": "Ipatinga", "vendas_totais": 6, "suas_vendas": 0, "principal_concorrente": "OUTROS"},
-            {"municipio": "Patos de Minas", "vendas_totais": 5, "suas_vendas": 0, "principal_concorrente": "BRASIF (CASE)"}
-        ],
-        "top_regions": [
-            {"municipio": "Belo Horizonte", "vendas_totais": 28, "suas_vendas": 22, "seu_share": 78.5},
-            {"municipio": "Contagem", "vendas_totais": 18, "suas_vendas": 12, "seu_share": 66.6},
-            {"municipio": "Betim", "vendas_totais": 12, "suas_vendas": 8, "seu_share": 66.6},
-            {"municipio": "Pouso Alegre", "vendas_totais": 8, "suas_vendas": 4, "seu_share": 50.0}
-        ]
+        "opportunities": [],
+        "top_regions": []
     }
 
 
@@ -456,7 +402,7 @@ def get_frota(
     """Retrieves piece-based estimated installed fleet (SPEC §4.6, §5)."""
     conn = get_db_connection()
     if not conn:
-        return get_simulated_frota()
+        return get_empty_frota()
     try:
         cur = conn.cursor()
         cur.execute("""
@@ -497,7 +443,7 @@ def get_frota(
         conn.close()
 
         if not fleet_shares and not fleet_details:
-            return get_simulated_frota()
+            return get_empty_frota()
 
         return {
             "fleet_shares": fleet_shares,
@@ -505,24 +451,13 @@ def get_frota(
         }
     except Exception as e:
         logger.error(f"Error fetching frota: {e}")
-        return get_simulated_frota()
+        return get_empty_frota()
 
 
-def get_simulated_frota():
+def get_empty_frota():
     return {
-        "fleet_shares": [
-            {"marca": "New Holland", "unidades": 342, "share": 38.5},
-            {"marca": "Caterpillar", "unidades": 240, "share": 27.0},
-            {"marca": "CASE", "unidades": 138, "share": 15.5},
-            {"marca": "JCB", "unidades": 98, "share": 11.0},
-            {"marca": "XCMG", "unidades": 71, "share": 8.0}
-        ],
-        "fleet_details": [
-            {"municipio": "Belo Horizonte", "marca": "New Holland", "modelo": "B95B", "ano_estimado": 2019, "ultima_manutencao": "2026-03-12"},
-            {"municipio": "Contagem", "marca": "Caterpillar", "modelo": "416F2", "ano_estimado": 2018, "ultima_manutencao": "2026-04-05"},
-            {"municipio": "Uberlândia", "marca": "CASE", "modelo": "580N", "ano_estimado": 2020, "ultima_manutencao": "2026-05-20"},
-            {"municipio": "Montes Claros", "marca": "JCB", "modelo": "3CX", "ano_estimado": 2017, "ultima_manutencao": "2026-01-18"}
-        ]
+        "fleet_shares": [],
+        "fleet_details": []
     }
 
 
@@ -629,7 +564,7 @@ def get_metodologia(
     All filters are optional — when omitted, returns global numbers."""
     conn = get_db_connection()
     if not conn:
-        return get_simulated_metodologia()
+        return get_empty_metodologia()
     try:
         cur = conn.cursor()
 
@@ -758,32 +693,21 @@ def get_metodologia(
         }
     except Exception as e:
         logger.error(f"Error fetching metodologia: {e}")
-        return get_simulated_metodologia()
+        return get_empty_metodologia()
 
 
-def get_simulated_metodologia():
-    """Fallback mock for metodologia when DB is unavailable."""
+def get_empty_metodologia():
+    """Fallback when DB is unavailable or empty."""
     return {
         "funil": {
-            "registros_brutos": 14850,
-            "registros_classificados": 420,
-            "registros_homologados": 210,
-            "registros_aprovados": 168
+            "registros_brutos": 0,
+            "registros_classificados": 0,
+            "registros_homologados": 0,
+            "registros_aprovados": 0
         },
-        "cobertura_categoria": [
-            {"categoria_sigla": "BHL", "descricao": "Retroescavadeira", "total_transacoes": 168, "volume_total": 71232000.0, "municipios_atingidos": 104, "valor_minimo_unitario": 150000.0, "valor_maximo_unitario": None, "qtd_max": 10},
-            {"categoria_sigla": "EXC", "descricao": "Escavadeira Hidráulica", "total_transacoes": 0, "volume_total": 0, "municipios_atingidos": 0, "valor_minimo_unitario": 150000.0, "valor_maximo_unitario": None, "qtd_max": 10},
-            {"categoria_sigla": "WLS", "descricao": "Pá Carregadeira", "total_transacoes": 0, "volume_total": 0, "municipios_atingidos": 0, "valor_minimo_unitario": 150000.0, "valor_maximo_unitario": None, "qtd_max": 10},
-            {"categoria_sigla": "CPTN", "descricao": "Rolo Compactador", "total_transacoes": 0, "volume_total": 0, "municipios_atingidos": 0, "valor_minimo_unitario": 150000.0, "valor_maximo_unitario": None, "qtd_max": 10},
-            {"categoria_sigla": "MINI", "descricao": "Mini Escavadeira", "total_transacoes": 0, "volume_total": 0, "municipios_atingidos": 0, "valor_minimo_unitario": 100000.0, "valor_maximo_unitario": 250000.0, "qtd_max": 10},
-            {"categoria_sigla": "SSL", "descricao": "Mini Carregadeira", "total_transacoes": 0, "volume_total": 0, "municipios_atingidos": 0, "valor_minimo_unitario": 100000.0, "valor_maximo_unitario": 250000.0, "qtd_max": 10},
-            {"categoria_sigla": "TH", "descricao": "Manipulador Telescópico", "total_transacoes": 0, "volume_total": 0, "municipios_atingidos": 0, "valor_minimo_unitario": 150000.0, "valor_maximo_unitario": None, "qtd_max": 10},
-            {"categoria_sigla": "MOT", "descricao": "Motoniveladora / Trator de Esteira", "total_transacoes": 0, "volume_total": 0, "municipios_atingidos": 0, "valor_minimo_unitario": 150000.0, "valor_maximo_unitario": None, "qtd_max": 10}
-        ],
-        "cobertura_uf": [
-            {"uf": "MG", "total_transacoes": 168, "municipios_atingidos": 104}
-        ],
-        "total_municipios": 104
+        "cobertura_categoria": [],
+        "cobertura_uf": [],
+        "total_municipios": 0
     }
 
 
@@ -1101,7 +1025,7 @@ def list_coleta_log(current_user: dict = Depends(get_current_user)):
     """Returns the execution history from the coleta_log table."""
     conn = get_db_connection()
     if not conn:
-        return get_simulated_coleta_log()
+        return get_empty_coleta_log()
     try:
         cur = conn.cursor()
         cur.execute("""
@@ -1128,7 +1052,7 @@ def list_coleta_log(current_user: dict = Depends(get_current_user)):
         cur.close()
         conn.close()
         if not rows:
-            return get_simulated_coleta_log()
+            return get_empty_coleta_log()
         return [{
             "id": r[0], "fonte_id": r[1],
             "iniciada_em": str(r[2]) if r[2] else None,
@@ -1140,16 +1064,12 @@ def list_coleta_log(current_user: dict = Depends(get_current_user)):
         } for r in rows]
     except Exception as e:
         logger.error(f"Error fetching coleta_log: {e}")
-        return get_simulated_coleta_log()
+        return get_empty_coleta_log()
 
 
-def get_simulated_coleta_log():
-    """Fallback mock for coleta_log execution history when DB is unavailable."""
-    return [
-        {"id": 3, "fonte_id": "PNCP", "iniciada_em": "2026-07-28T06:00:00Z", "terminada_em": "2026-07-28T08:45:00Z", "registros_brutos": 14850, "registros_aprovados": 168, "erros": None, "status": "sucesso"},
-        {"id": 2, "fonte_id": "PNCP", "iniciada_em": "2026-07-21T06:00:00Z", "terminada_em": "2026-07-21T09:12:00Z", "registros_brutos": 14230, "registros_aprovados": 162, "erros": None, "status": "sucesso"},
-        {"id": 1, "fonte_id": "PNCP", "iniciada_em": "2026-07-14T06:00:00Z", "terminada_em": "2026-07-14T08:30:00Z", "registros_brutos": 13890, "registros_aprovados": 155, "erros": "3 rate limit retries", "status": "sucesso"}
-    ]
+def get_empty_coleta_log():
+    """Fallback empty mock for coleta_log execution history when DB is unavailable."""
+    return []
 
 
 if __name__ == "__main__":

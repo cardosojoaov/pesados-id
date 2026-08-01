@@ -1,63 +1,47 @@
--- Estrutura de banco de dados para o Pipeline PNCP
+-- Estrutura de banco de dados para a Solução PESADOS.ID (Fase 4+)
+-- Preparado para Multi-fontes (PNCP, Empresômetro, Logcomex)
 
--- 1. Tabela de transações (compras do PNCP)
-CREATE TABLE IF NOT EXISTS transacao_pncp (
-    id SERIAL PRIMARY KEY,
-    cnpj_orgao VARCHAR(20) NOT NULL,
-    ano_compra INTEGER NOT NULL,
-    sequencial_compra INTEGER NOT NULL,
-    numero_item INTEGER NOT NULL,
-    municipio VARCHAR(100),
-    uf VARCHAR(2),
-    orgao VARCHAR(255),
-    fornecedor_original VARCHAR(255),
-    quantidade DECIMAL(10,2),
-    valor_unitario DECIMAL(15,2),
-    data_homologacao DATE,
-    descricao_original TEXT,
-    url_origem TEXT,
-    categoria_sigla VARCHAR(50),
-    situacao VARCHAR(50),
-    tipo_registro VARCHAR(50), -- LOCACAO, PECAS_MANUTENCAO, COMPRA_NOVA, INDEFINIDO
-    fornecedor_normalizado VARCHAR(255),
-    marca_deduzida VARCHAR(100),
-    maquina_marca VARCHAR(100), -- Extraido da frota
-    maquina_modelo VARCHAR(100), -- Extraido da frota
-    maquina_ano INTEGER, -- Extraido da frota
-    criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE (cnpj_orgao, ano_compra, sequencial_compra, numero_item)
+-- 1. Fonte de Dados
+CREATE TABLE IF NOT EXISTS fonte (
+    id VARCHAR(50) PRIMARY KEY, -- 'PNCP', 'EMPRESOMETRO', 'LOGCOMEX'
+    nome VARCHAR(100) NOT NULL,
+    descricao TEXT,
+    ativo BOOLEAN DEFAULT TRUE
 );
+INSERT INTO fonte (id, nome) VALUES ('PNCP', 'Portal Nacional de Contratações Públicas') ON CONFLICT DO NOTHING;
 
 -- 2. Tabela de parâmetros por categoria (Limites para COMPRA_NOVA)
-CREATE TABLE IF NOT EXISTS pncp_parametros (
-    id SERIAL PRIMARY KEY,
-    categoria_sigla VARCHAR(50) UNIQUE NOT NULL,
-    valor_unitario_min DECIMAL(15,2) NOT NULL,
-    valor_unitario_max DECIMAL(15,2) NOT NULL,
-    quantidade_max INTEGER NOT NULL,
+CREATE TABLE IF NOT EXISTS config_filtros_categoria (
+    categoria_sigla VARCHAR(50) PRIMARY KEY,
+    descricao VARCHAR(255) NOT NULL,
+    valor_minimo_unitario DECIMAL(15,2) NOT NULL,
+    valor_maximo_unitario DECIMAL(15,2),
+    qtd_max INTEGER NOT NULL DEFAULT 10,
     ativo BOOLEAN DEFAULT TRUE,
     atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Inserir alguns exemplos baseados na especificação
-INSERT INTO pncp_parametros (categoria_sigla, valor_unitario_min, valor_unitario_max, quantidade_max)
+INSERT INTO config_filtros_categoria (categoria_sigla, descricao, valor_minimo_unitario, valor_maximo_unitario, qtd_max)
 VALUES 
-    ('retroescavadeira', 150000, 900000, 10),
-    ('escavadeira', 300000, 1500000, 10),
-    ('minicarregadeira', 100000, 400000, 10)
+    ('BHL', 'Retroescavadeira', 150000, 900000, 10),
+    ('EXC', 'Escavadeira Hidráulica', 300000, 1500000, 10),
+    ('WLS', 'Pá Carregadeira', 150000, 1000000, 10),
+    ('CPTN', 'Rolo Compactador', 150000, 800000, 10),
+    ('MINI', 'Mini Escavadeira', 100000, 250000, 10),
+    ('SSL', 'Mini Carregadeira', 100000, 250000, 10),
+    ('TH', 'Manipulador Telescópico', 150000, 800000, 10),
+    ('MOT', 'Motoniveladora / Trator de Esteira', 150000, 2500000, 10)
 ON CONFLICT (categoria_sigla) DO NOTHING;
 
--- 3. Tabela de normalização de fornecedores
-CREATE TABLE IF NOT EXISTS fornecedor_normalizacao (
+-- 3. Tabela de normalização de fornecedores (Usada para Admin / Ingestão)
+CREATE TABLE IF NOT EXISTS normalizacao_fornecedores (
     id SERIAL PRIMARY KEY,
-    palavra_chave VARCHAR(100) UNIQUE NOT NULL,
+    termo_busca VARCHAR(100) UNIQUE NOT NULL,
     nome_normalizado VARCHAR(255) NOT NULL,
     ativo BOOLEAN DEFAULT TRUE
 );
 
--- Inserir os exemplos da especificação
-INSERT INTO fornecedor_normalizacao (palavra_chave, nome_normalizado)
+INSERT INTO normalizacao_fornecedores (termo_busca, nome_normalizado)
 VALUES 
     ('BAMAQ', 'BAMAQ'),
     ('BANDEIRANTES', 'BAMAQ'),
@@ -66,9 +50,9 @@ VALUES
     ('TRIAMA', 'TRIAMA NORTE'),
     ('CENTRO OESTE', 'CENTRO OESTE'),
     ('XCMG', 'XCMG BRASIL')
-ON CONFLICT (palavra_chave) DO NOTHING;
+ON CONFLICT (termo_busca) DO NOTHING;
 
--- 4. Tabela de dedução de Marca pelo Dealer
+-- 4. Tabela de dedução de Marca pelo Dealer (Dealer -> Marca)
 CREATE TABLE IF NOT EXISTS dealer_marca (
     id SERIAL PRIMARY KEY,
     fornecedor_normalizado VARCHAR(255) NOT NULL,
@@ -79,7 +63,6 @@ CREATE TABLE IF NOT EXISTS dealer_marca (
     UNIQUE (fornecedor_normalizado, marca)
 );
 
--- Inserir os exemplos da especificação (usando NOT EXISTS já que a tabela não tem UNIQUE constraint)
 INSERT INTO dealer_marca (fornecedor_normalizado, marca, confianca, data_inicio_vigencia)
 SELECT * FROM (VALUES 
     ('VALENCE', 'JCB', 'confirmado', CURRENT_DATE),
@@ -92,7 +75,87 @@ WHERE NOT EXISTS (
     WHERE dm.fornecedor_normalizado = t.f AND dm.marca = t.m
 );
 
--- 5. View Inteligente de Consolidação (Faz a ponte com o Backend)
+-- 5. Tabela de Transações Central Unificada
+CREATE TABLE IF NOT EXISTS transacao (
+    id SERIAL PRIMARY KEY,
+    fonte_id VARCHAR(50) REFERENCES fonte(id),
+    cnpj_orgao VARCHAR(20),
+    ano_compra INTEGER,
+    sequencial_compra INTEGER,
+    numero_item INTEGER,
+    municipio VARCHAR(100),
+    uf VARCHAR(2),
+    orgao VARCHAR(255),
+    fornecedor_original VARCHAR(255),
+    fornecedor_normalizado VARCHAR(255),
+    marca_deduzida VARCHAR(100),
+    quantidade DECIMAL(10,2),
+    valor_unitario DECIMAL(15,2),
+    data_homologacao DATE,
+    descricao_original TEXT,
+    url_origem TEXT,
+    categoria_sigla VARCHAR(50) REFERENCES config_filtros_categoria(categoria_sigla),
+    situacao VARCHAR(50),
+    tipo_registro VARCHAR(50), -- LOCACAO, PECAS_MANUTENCAO, COMPRA_NOVA, INDEFINIDO
+    comprador_tipo VARCHAR(50), -- Governo, Privado
+    tipo VARCHAR(50), -- COMPRA, VENDA
+    marca VARCHAR(100), -- Extraído da Frota
+    modelo VARCHAR(100), -- Extraído da Frota
+    ano VARCHAR(20), -- Extraído da Frota
+    criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (cnpj_orgao, ano_compra, sequencial_compra, numero_item, tipo_registro, fonte_id)
+);
+
+-- Migração de compatibilidade caso a tabela transacao já existisse previamente
+ALTER TABLE transacao ADD COLUMN IF NOT EXISTS fonte_id VARCHAR(50);
+ALTER TABLE transacao ADD COLUMN IF NOT EXISTS fornecedor_normalizado VARCHAR(255);
+ALTER TABLE transacao ADD COLUMN IF NOT EXISTS marca_deduzida VARCHAR(100);
+ALTER TABLE transacao ADD COLUMN IF NOT EXISTS comprador_tipo VARCHAR(50);
+ALTER TABLE transacao ADD COLUMN IF NOT EXISTS tipo VARCHAR(50);
+ALTER TABLE transacao ADD COLUMN IF NOT EXISTS marca VARCHAR(100);
+ALTER TABLE transacao ADD COLUMN IF NOT EXISTS modelo VARCHAR(100);
+ALTER TABLE transacao ADD COLUMN IF NOT EXISTS ano VARCHAR(20);
+
+-- Trigger para dedução automática da marca baseada no fornecedor_normalizado
+CREATE OR REPLACE FUNCTION deduzir_marca()
+RETURNS trigger AS $$
+BEGIN
+    IF NEW.fornecedor_normalizado IS NOT NULL AND (NEW.marca_deduzida IS NULL OR NEW.marca_deduzida = '' OR NEW.marca_deduzida = 'NÃO SE APLICA') THEN
+        SELECT marca INTO NEW.marca_deduzida
+        FROM dealer_marca
+        WHERE fornecedor_normalizado = NEW.fornecedor_normalizado
+          AND (data_fim_vigencia IS NULL OR CURRENT_DATE <= data_fim_vigencia)
+        ORDER BY CASE WHEN confianca = 'confirmado' THEN 1 ELSE 2 END
+        LIMIT 1;
+        
+        IF NEW.marca_deduzida IS NULL THEN
+            NEW.marca_deduzida := 'NÃO IDENTIFICADA';
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trigger_deduzir_marca ON transacao;
+CREATE TRIGGER trigger_deduzir_marca
+BEFORE INSERT OR UPDATE ON transacao
+FOR EACH ROW
+EXECUTE FUNCTION deduzir_marca();
+
+-- 6. Log de Coletas (Transações Automatizadas)
+CREATE TABLE IF NOT EXISTS coleta_log (
+    id SERIAL PRIMARY KEY,
+    fonte_id VARCHAR(50) REFERENCES fonte(id),
+    iniciada_em TIMESTAMP,
+    terminada_em TIMESTAMP,
+    registros_brutos INTEGER,
+    registros_aprovados INTEGER,
+    erros TEXT,
+    status VARCHAR(50)
+);
+
+-- 7. View Inteligente de Consolidação (Mantém retrocompatibilidade)
 DROP VIEW IF EXISTS view_vendas_maquinas_reais CASCADE;
 
 CREATE VIEW view_vendas_maquinas_reais AS
@@ -110,17 +173,9 @@ SELECT
     data_homologacao,
     descricao_original,
     url_origem,
-    CASE 
-        WHEN categoria_sigla ILIKE 'retroescavadeira%' THEN 'BHL'
-        WHEN categoria_sigla ILIKE 'escavadeira%' THEN 'EXC'
-        WHEN categoria_sigla ILIKE 'pá carregadeira%' THEN 'WLS'
-        WHEN categoria_sigla ILIKE 'rolo compactador%' THEN 'CPTN'
-        WHEN categoria_sigla ILIKE 'minicarregadeira%' THEN 'SSL'
-        WHEN categoria_sigla ILIKE 'manipulador telescópico%' THEN 'TH'
-        ELSE UPPER(categoria_sigla)
-    END AS categoria_sigla,
-    'Governo' AS comprador_tipo
-FROM transacao_pncp
-WHERE situacao = 'HOMOLOGADO' 
-  AND tipo_registro = 'COMPRA_NOVA';
-
+    categoria_sigla,
+    comprador_tipo
+FROM transacao
+WHERE UPPER(situacao) = 'HOMOLOGADO' 
+  AND tipo_registro = 'COMPRA_NOVA'
+  AND (fonte_id = 'PNCP' OR fonte_id IS NULL);

@@ -30,26 +30,15 @@ export default function PesadosDashboard() {
 
   const [loading, setLoading] = useState(false);
   const [kpis, setKpis] = useState({
-    total_unidades: 168,
-    volume_mercado: 71232000.00,
-    ticket_medio: 424000.00,
-    municipios_presenca: 104,
-    cobertura_estimada: 88.5
+    total_unidades: 0,
+    volume_mercado: 0.0,
+    ticket_medio: 0.0,
+    municipios_presenca: 0,
+    cobertura_estimada: 0.0
   });
 
-  const [brandShares, setBrandShares] = useState([
-    { marca: 'New Holland', dealer: 'BAMAQ', unidades: 81, share: 48.2, is_user: true },
-    { marca: 'CASE', dealer: 'BRASIF', unidades: 19, share: 11.3, is_user: false },
-    { marca: 'JCB', dealer: 'VALENCE', unidades: 18, share: 10.7, is_user: false },
-    { marca: 'NÃO IDENTIFICADA', dealer: 'Outros', unidades: 50, share: 29.8, is_user: false }
-  ]);
-
-  const [dealerShares, setDealerShares] = useState([
-    { dealer: 'BAMAQ', unidades: 81, share: 48.2, marca: 'New Holland' },
-    { dealer: 'BRASIF', unidades: 19, share: 11.3, marca: 'CASE' },
-    { dealer: 'VALENCE', unidades: 18, share: 10.7, marca: 'JCB' },
-    { dealer: 'OUTROS/DIRETOS', unidades: 50, share: 29.8, marca: 'NÃO IDENTIFICADA' }
-  ]);
+  const [brandShares, setBrandShares] = useState([]);
+  const [dealerShares, setDealerShares] = useState([]);
 
   const [transactions, setTransactions] = useState([]);
   const [territories, setTerritories] = useState({ opportunities: [], top_regions: [] });
@@ -147,31 +136,27 @@ export default function PesadosDashboard() {
     }
   }, [activeTab]);
 
-  const handleExportCSV = () => {
-    const csvRows = [];
-    csvRows.push('\ufeff');
-    csvRows.push(["Municipio", "Orgao", "Fornecedor", "Marca Deduzida", "Quantidade", "Valor Unitario (BRL)", "Valor Total (BRL)", "Data"].join(';'));
-
-    transactions.forEach(t => {
-      csvRows.push([
-        t.municipio,
-        `"${t.orgao.replace(/"/g, '""')}"`,
-        `"${t.fornecedor.replace(/"/g, '""')}"`,
-        t.marca,
-        t.quantidade,
-        t.valor_unitario.toFixed(2).replace('.', ','),
-        t.valor_total.toFixed(2).replace('.', ','),
-        t.data
-      ].join(';'));
-    });
-
-    const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.setAttribute("download", `pesados_id_participacao_${uf}_${categoria}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const handleExportXLSX = async () => {
+    try {
+      const [start, end] = periodo.split('_');
+      const url = `http://localhost:8000/api/dashboard/export?categoria=${categoria}&uf=${uf}&periodo_inicio=${start}&periodo_fim=${end}&segmento=${segmento}`;
+      
+      const authHeaders = session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {};
+      const res = await fetch(url, { headers: authHeaders });
+      
+      if (!res.ok) throw new Error(`API error: ${res.status}`);
+      
+      const blob = await res.blob();
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.setAttribute("download", `pesados_id_participacao_${uf}_${categoria}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (e) {
+      console.error(e);
+      alert("Falha na exportação. Verifique se o backend está rodando.");
+    }
   };
 
   if (authLoading) {
@@ -292,7 +277,7 @@ export default function PesadosDashboard() {
 
           <div className="flex items-end">
             <button
-              onClick={handleExportCSV}
+              onClick={handleExportXLSX}
               className="w-full md:w-auto bg-obsidiana hover:bg-ink-70 text-white font-semibold text-xs px-4 py-2 rounded-lg flex items-center justify-center gap-2 shadow-sm transition-all"
             >
               <span>Exportar Dados</span>
@@ -895,68 +880,25 @@ function formatDate(dateStr) {
   return `${d}/${m}/${y}`;
 }
 
-function getMockedData(categoria, uf) {
-  if (categoria === 'BHL' && uf === 'MG') {
-    return {
-      kpis: { total_unidades: 168, volume_mercado: 71232000.00, ticket_medio: 424000.00, municipios_presenca: 104, cobertura_estimada: 88.5 },
-      brand_shares: [
-        { marca: 'New Holland', dealer: 'BAMAQ', unidades: 81, share: 48.2, is_user: true },
-        { marca: 'CASE', dealer: 'BRASIF', unidades: 19, share: 11.3, is_user: false },
-        { marca: 'JCB', dealer: 'VALENCE', unidades: 18, share: 10.7, is_user: false },
-        { marca: 'NÃO IDENTIFICADA', dealer: 'Outros', unidades: 50, share: 29.8, is_user: false }
-      ],
-      transactions: Array.from({ length: 168 }, (_, i) => ({
-        municipio: `Município Piloto ${String((i % 104) + 1).padStart(3, '0')}`,
-        orgao: `Prefeitura Municipal de Teste ${String((i % 104) + 1).padStart(3, '0')}`,
-        fornecedor: i < 81 ? "BAMAQ MINAS S/A" : (i < 100 ? "BRASIF S.A." : (i < 118 ? "VALENCE EQUIPAMENTOS" : "XCMG BRASIL")),
-        marca: i < 81 ? "New Holland" : (i < 100 ? "CASE" : (i < 118 ? "JCB" : "NÃO IDENTIFICADA")),
-        quantidade: 1,
-        valor_unitario: 424000.00,
-        valor_total: 424000.00,
-        data: "2025-10-15",
-        url: `https://pncp.gov.br/app/compras/00000000000000/2025/${i+1}`
-      }))
-    };
-  }
+function getMockedData() {
   return {
     kpis: { total_unidades: 0, volume_mercado: 0, ticket_medio: 0, municipios_presenca: 0, cobertura_estimada: 0 },
     brand_shares: [],
+    dealer_shares: [],
     transactions: []
   };
 }
 
 function getMockedTerritories() {
   return {
-    opportunities: [
-      { municipio: "Uberlândia", vendas_totais: 14, suas_vendas: 0, principal_concorrente: "BRASIF (CASE)" },
-      { municipio: "Montes Claros", vendas_totais: 9, suas_vendas: 0, principal_concorrente: "VALENCE (JCB)" },
-      { municipio: "Juiz de Fora", vendas_totais: 7, suas_vendas: 0, principal_concorrente: "VALENCE (JCB)" },
-      { municipio: "Ipatinga", vendas_totais: 6, suas_vendas: 0, principal_concorrente: "OUTROS" },
-      { municipio: "Patos de Minas", vendas_totais: 5, suas_vendas: 0, principal_concorrente: "BRASIF (CASE)" }
-    ],
-    top_regions: [
-      { municipio: "Belo Horizonte", vendas_totais: 28, suas_vendas: 22, seu_share: 78.5 },
-      { municipio: "Contagem", vendas_totais: 18, suas_vendas: 12, seu_share: 66.6 },
-      { municipio: "Betim", vendas_totais: 12, suas_vendas: 8, seu_share: 66.6 },
-      { municipio: "Pouso Alegre", vendas_totais: 8, suas_vendas: 4, seu_share: 50.0 }
-    ]
+    opportunities: [],
+    top_regions: []
   };
 }
 
 function getMockedFleet() {
   return {
-    fleet_shares: [
-      { marca: "New Holland", unidades: 342, share: 38.5 },
-      { marca: "Caterpillar", unidades: 240, share: 27.0 },
-      { marca: "CASE", unidades: 138, share: 15.5 },
-      { marca: "JCB", unidades: 98, share: 11.0 },
-      { marca: "XCMG", unidades: 71, share: 8.0 }
-    ],
-    fleet_details: [
-      { municipio: "Belo Horizonte", marca: "New Holland", modelo: "B95B", ano_estimado: 2019, ultima_manutencao: "2026-03-12" },
-      { municipio: "Contagem", marca: "Caterpillar", modelo: "416F2", ano_estimado: 2018, ultima_manutencao: "2026-04-05" },
-      { municipio: "Uberlândia", marca: "CASE", modelo: "580N", ano_estimado: 2020, ultima_manutencao: "2026-05-20" },
-      { municipio: "Montes Claros", marca: "JCB", modelo: "3CX", ano_estimado: 2017, ultima_manutencao: "2026-01-18" }
-    ]
+    fleet_shares: [],
+    fleet_details: []
   };
 }

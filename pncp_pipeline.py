@@ -217,22 +217,22 @@ def extrair_dados_pncp(termo):
 def processar_e_salvar(conn, itens_processados, params_filtro, regras_fornecedor, dealer_marca):
     
     query = """
-        INSERT INTO transacao_pncp (
+        INSERT INTO transacao (
             cnpj_orgao, ano_compra, sequencial_compra, numero_item,
             municipio, uf, orgao, fornecedor_original, quantidade,
             valor_unitario, data_homologacao, descricao_original, url_origem,
             categoria_sigla, situacao, tipo_registro, 
             fornecedor_normalizado, marca_deduzida, 
-            maquina_marca, maquina_modelo, maquina_ano
+            marca, modelo, ano, fonte_id
         ) VALUES (
             %(cnpj_orgao)s, %(ano_compra)s, %(sequencial_compra)s, %(numero_item)s,
             %(municipio)s, %(uf)s, %(orgao)s, %(fornecedor_original)s, %(quantidade)s,
             %(valor_unitario)s, %(data_homologacao)s, %(descricao_original)s, %(url_origem)s,
             %(categoria_sigla)s, %(situacao)s, %(tipo_registro)s,
             %(fornecedor_normalizado)s, %(marca_deduzida)s,
-            %(maquina_marca)s, %(maquina_modelo)s, %(maquina_ano)s
+            %(maquina_marca)s, %(maquina_modelo)s, %(maquina_ano)s, 'PNCP'
         )
-        ON CONFLICT (cnpj_orgao, ano_compra, sequencial_compra, numero_item) 
+        ON CONFLICT (cnpj_orgao, ano_compra, sequencial_compra, numero_item, tipo_registro, fonte_id) 
         DO UPDATE SET
             situacao = EXCLUDED.situacao,
             fornecedor_normalizado = EXCLUDED.fornecedor_normalizado,
