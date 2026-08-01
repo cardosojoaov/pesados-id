@@ -42,12 +42,13 @@ O sistema integra:
 Abra o seu **SQL Editor** no painel do Supabase e execute as migrações estruturais abaixo:
 
 ```sql
--- 1. Tabela de Parâmetros de Filtro Financeiro por Categoria
+-- 1. Tabela de Parâmetros de Filtro Financeiro por Categoria (SPEC §4.4 — configurável, nada hardcoded)
 CREATE TABLE config_filtros_categoria (
     categoria_sigla VARCHAR(10) PRIMARY KEY,
     descricao VARCHAR(100) NOT NULL,
     valor_minimo_unitario NUMERIC(12, 2) NOT NULL DEFAULT 150000.00,
     valor_maximo_unitario NUMERIC(12, 2),
+    qtd_max INTEGER NOT NULL DEFAULT 10, -- Limite de quantidade por categoria (escavadeira grande pode passar de 10)
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -93,6 +94,9 @@ CREATE TABLE transacao (
     fonte_id VARCHAR(50) NOT NULL DEFAULT 'PNCP', -- Preparação para dado privado
     comprador_tipo VARCHAR(50) NOT NULL DEFAULT 'Governo',
     tipo VARCHAR(50) NOT NULL DEFAULT 'COMPRA',
+    marca VARCHAR(100),
+    modelo VARCHAR(100),
+    ano VARCHAR(20),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     CONSTRAINT unique_transacao_registro UNIQUE (cnpj_orgao, ano_compra, sequencial_compra, numero_item, tipo_registro, fonte_id)
 );
@@ -161,19 +165,20 @@ WHERE
     AND t.tipo_registro = 'COMPRA_NOVA'
     AND t.quantidade = FLOOR(t.quantidade)
     AND t.quantidade > 0
+    AND t.quantidade <= c.qtd_max
     AND t.valor_unitario >= c.valor_minimo_unitario
     AND (c.valor_maximo_unitario IS NULL OR t.valor_unitario <= c.valor_maximo_unitario);
 
 -- 7. Carga de Seed e Inicialização de Mapeamentos base
-INSERT INTO config_filtros_categoria (categoria_sigla, descricao, valor_minimo_unitario) VALUES
-('BHL', 'Retroescavadeira', 150000.00),
-('EXC', 'Escavadeira Hidráulica', 150000.00),
-('WLS', 'Pá Carregadeira', 150000.00),
-('CPTN', 'Rolo Compactador', 150000.00),
-('MINI', 'Mini Escavadeira', 100000.00),
-('SSL', 'Mini Carregadeira', 100000.00),
-('TH', 'Manipulador Telescópico', 150000.00),
-('MOT', 'Motoniveladora / Trator de Esteira', 150000.00);
+INSERT INTO config_filtros_categoria (categoria_sigla, descricao, valor_minimo_unitario, valor_maximo_unitario, qtd_max) VALUES
+('BHL', 'Retroescavadeira', 150000.00, NULL, 10),
+('EXC', 'Escavadeira Hidráulica', 150000.00, NULL, 10),
+('WLS', 'Pá Carregadeira', 150000.00, NULL, 10),
+('CPTN', 'Rolo Compactador', 150000.00, NULL, 10),
+('MINI', 'Mini Escavadeira', 100000.00, 250000.00, 10),
+('SSL', 'Mini Carregadeira', 100000.00, 250000.00, 10),
+('TH', 'Manipulador Telescópico', 150000.00, NULL, 10),
+('MOT', 'Motoniveladora / Trator de Esteira', 150000.00, NULL, 10);
 
 INSERT INTO normalizacao_fornecedores (termo_busca, nome_normalizado) VALUES
 ('BAMAQ MINAS', 'BAMAQ'),
@@ -191,6 +196,12 @@ INSERT INTO dealer_marca (fornecedor_normalizado, marca, confianca, data_inicio_
 ('BRASIF', 'CASE', 'confirmado', '2015-01-01'),
 ('VALENCE', 'JCB', 'confirmado', '2015-01-01');
 ```
+
+> **Migração para bancos existentes:** se a tabela `config_filtros_categoria` já existe sem a coluna `qtd_max`, execute antes da recriação da view:
+> ```sql
+> ALTER TABLE config_filtros_categoria ADD COLUMN IF NOT EXISTS qtd_max INTEGER NOT NULL DEFAULT 10;
+> ```
+> A view `view_vendas_maquinas_reais` deve ser recriada (`CREATE OR REPLACE VIEW` acima) para passar a usar `c.qtd_max` em vez do limite fixo de 10 unidades.
 
 ---
 
@@ -268,3 +279,30 @@ WHERE
 *   `share_bamaq`: 48,2%
 *   `share_brasif`: 11,3%
 *   `share_valence`: 10,7%
+
+---
+
+## 6. Documentação de Escalabilidade (Entregável #8)
+
+### Como Adicionar uma Nova Categoria de Máquina
+O sistema foi desenhado para ser "Data Driven", logo o código Python não guarda regras fixas (Hardcoded) das máquinas. Para adicionar uma nova categoria (ex: Caminhões Fora de Estrada):
+
+1. **Abra o banco Supabase** (SQL Editor).
+2. Insira a nova sigla na tabela `config_filtros_categoria`, parametrizando as travas de valor (evita peças sendo marcadas como máquinas) e quantidade:
+   ```sql
+   INSERT INTO config_filtros_categoria 
+   (categoria_sigla, descricao, valor_minimo_unitario, valor_maximo_unitario, qtd_max) 
+   VALUES ('HDT', 'Caminhão Fora de Estrada', 800000.00, NULL, 5);
+   ```
+3. O Pipeline de Ingestão e o Frontend absorverão a nova categoria automaticamente na próxima coleta / recarregamento.
+
+### Como Adicionar uma Nova Fonte Privada (Ex: NF-e ou Logcomex)
+Atualmente o sistema ingere apenas o `PNCP` (Governamental). Para plugar uma fonte Privada, mantenha o contrato da tabela `transacao` focado na coluna `fonte_id`:
+
+1.  **Crie o script `ingestion_[NOME_DA_FONTE].py`**: Ele deve ser isolado do PNCP e ser responsável por fazer requisições à API da Serpro (NF-e) ou Logcomex (Importação).
+2.  **Mapeie o Output para a Transação Unificada**: O Script deve inserir dados na tabela `transacao`, garantindo as marcações de visibilidade:
+    *   Setar `fonte_id` (ex: `'NFE'`, `'LOGCOMEX'`).
+    *   Setar `comprador_tipo` (ex: `'Privado'` ou `'Locadora'`).
+    *   Setar `tipo` (se Logcomex, `'IMPORTAÇÃO'`).
+3. **Não altere a View Principal `view_vendas_maquinas_reais`**: Ela processa tudo de forma agnóstica. As novas vendas privadas aparecerão na mesma tela de Market Share automaticamente.
+4. Caso a fonte Privada traga explicitamente o CPNJ da Montadora (ex: NF-e emitida pela CNH Industrial), aplique a mesma regra de dedução usando a tabela `dealer_marca` apontando o "Fornecedor da Nota" para a Marca final.

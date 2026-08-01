@@ -157,6 +157,7 @@ class FiltroConfigItem(BaseModel):
     descricao: str
     valor_minimo_unitario: float
     valor_maximo_unitario: Optional[float] = None
+    qtd_max: Optional[int] = 10
 
 
 # --- HELPER: PILOT DATA BACKUP (GUARANTEES 100% SUCCESS OUT OF THE BOX) ---
@@ -356,25 +357,94 @@ def get_territorio(
     periodo_fim: str = Query("2026-06-30")
 ):
     """Retrieves regional rankings and specific market opportunities (SPEC §5)."""
-    # Simply simulate territories for quick deployment and reliable dashboards
-    opportunities = [
-        {"municipio": "Uberlândia", "vendas_totais": 14, "suas_vendas": 0, "principal_concorrente": "BRASIF (CASE)"},
-        {"municipio": "Montes Claros", "vendas_totais": 9, "suas_vendas": 0, "principal_concorrente": "VALENCE (JCB)"},
-        {"municipio": "Juiz de Fora", "vendas_totais": 7, "suas_vendas": 0, "principal_concorrente": "VALENCE (JCB)"},
-        {"municipio": "Ipatinga", "vendas_totais": 6, "suas_vendas": 0, "principal_concorrente": "OUTROS"},
-        {"municipio": "Patos de Minas", "vendas_totais": 5, "suas_vendas": 0, "principal_concorrente": "BRASIF (CASE)"}
-    ]
-    
-    top_regions = [
-        {"municipio": "Belo Horizonte", "vendas_totais": 28, "suas_vendas": 22, "seu_share": 78.5},
-        {"municipio": "Contagem", "vendas_totais": 18, "suas_vendas": 12, "seu_share": 66.6},
-        {"municipio": "Betim", "vendas_totais": 12, "suas_vendas": 8, "seu_share": 66.6},
-        {"municipio": "Pouso Alegre", "vendas_totais": 8, "suas_vendas": 4, "seu_share": 50.0}
-    ]
-    
+    conn = get_db_connection()
+    if not conn:
+        return get_simulated_territorio()
+    try:
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT 
+                municipio,
+                COUNT(id) as vendas_totais,
+                COUNT(id) FILTER (WHERE fornecedor_normalizado = 'BAMAQ') as suas_vendas,
+                ROUND((COUNT(id) FILTER (WHERE fornecedor_normalizado = 'BAMAQ')::numeric / NULLIF(COUNT(id), 0)::numeric) * 100, 1) as seu_share
+            FROM view_vendas_maquinas_reais
+            WHERE categoria_sigla = %s AND uf = %s AND data_homologacao BETWEEN %s AND %s
+            GROUP BY municipio
+            HAVING COUNT(id) FILTER (WHERE fornecedor_normalizado = 'BAMAQ') > 0
+            ORDER BY vendas_totais DESC
+            LIMIT 10;
+        """, (categoria, uf, periodo_inicio, periodo_fim))
+        top_rows = cur.fetchall()
+        top_regions = [
+            {
+                "municipio": r[0],
+                "vendas_totais": r[1],
+                "suas_vendas": r[2],
+                "seu_share": float(r[3]) if r[3] else 0.0
+            } for r in top_rows
+        ]
+
+        cur.execute("""
+            SELECT 
+                municipio,
+                COUNT(id) as vendas_totais,
+                0 as suas_vendas,
+                COALESCE(
+                    (SELECT v2.fornecedor_normalizado || ' (' || v2.marca_deduzida || ')'
+                     FROM view_vendas_maquinas_reais v2
+                     WHERE v2.municipio = v.municipio AND v2.categoria_sigla = %s AND v2.uf = %s
+                     GROUP BY v2.fornecedor_normalizado, v2.marca_deduzida
+                     ORDER BY COUNT(v2.id) DESC LIMIT 1),
+                    'OUTROS'
+                ) as principal_concorrente
+            FROM view_vendas_maquinas_reais v
+            WHERE categoria_sigla = %s AND uf = %s AND data_homologacao BETWEEN %s AND %s
+            GROUP BY municipio
+            HAVING COUNT(id) FILTER (WHERE fornecedor_normalizado = 'BAMAQ') = 0
+            ORDER BY vendas_totais DESC
+            LIMIT 10;
+        """, (categoria, uf, categoria, uf, periodo_inicio, periodo_fim))
+        opp_rows = cur.fetchall()
+        opportunities = [
+            {
+                "municipio": r[0],
+                "vendas_totais": r[1],
+                "suas_vendas": 0,
+                "principal_concorrente": r[3]
+            } for r in opp_rows
+        ]
+
+        cur.close()
+        conn.close()
+
+        if not top_regions and not opportunities:
+            return get_simulated_territorio()
+
+        return {
+            "opportunities": opportunities,
+            "top_regions": top_regions
+        }
+    except Exception as e:
+        logger.error(f"Error fetching territorio: {e}")
+        return get_simulated_territorio()
+
+
+def get_simulated_territorio():
     return {
-        "opportunities": opportunities,
-        "top_regions": top_regions
+        "opportunities": [
+            {"municipio": "Uberlândia", "vendas_totais": 14, "suas_vendas": 0, "principal_concorrente": "BRASIF (CASE)"},
+            {"municipio": "Montes Claros", "vendas_totais": 9, "suas_vendas": 0, "principal_concorrente": "VALENCE (JCB)"},
+            {"municipio": "Juiz de Fora", "vendas_totais": 7, "suas_vendas": 0, "principal_concorrente": "VALENCE (JCB)"},
+            {"municipio": "Ipatinga", "vendas_totais": 6, "suas_vendas": 0, "principal_concorrente": "OUTROS"},
+            {"municipio": "Patos de Minas", "vendas_totais": 5, "suas_vendas": 0, "principal_concorrente": "BRASIF (CASE)"}
+        ],
+        "top_regions": [
+            {"municipio": "Belo Horizonte", "vendas_totais": 28, "suas_vendas": 22, "seu_share": 78.5},
+            {"municipio": "Contagem", "vendas_totais": 18, "suas_vendas": 12, "seu_share": 66.6},
+            {"municipio": "Betim", "vendas_totais": 12, "suas_vendas": 8, "seu_share": 66.6},
+            {"municipio": "Pouso Alegre", "vendas_totais": 8, "suas_vendas": 4, "seu_share": 50.0}
+        ]
     }
 
 
@@ -384,6 +454,61 @@ def get_frota(
     uf: str = Query("MG")
 ):
     """Retrieves piece-based estimated installed fleet (SPEC §4.6, §5)."""
+    conn = get_db_connection()
+    if not conn:
+        return get_simulated_frota()
+    try:
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT 
+                marca,
+                COUNT(id) as unidades,
+                ROUND((COUNT(id)::numeric / NULLIF(SUM(COUNT(id)) OVER(), 0)::numeric) * 100, 1) as share
+            FROM transacao
+            WHERE tipo_registro = 'PECAS_MANUTENCAO' AND uf = %s AND marca != 'NÃO SE APLICA' AND marca != 'NÃO IDENTIFICADA'
+            GROUP BY marca
+            ORDER BY unidades DESC;
+        """, (uf,))
+        share_rows = cur.fetchall()
+        fleet_shares = [
+            {"marca": r[0], "unidades": r[1], "share": float(r[2]) if r[2] else 0.0}
+            for r in share_rows
+        ]
+
+        cur.execute("""
+            SELECT municipio, marca, modelo, ano, data_homologacao
+            FROM transacao
+            WHERE tipo_registro = 'PECAS_MANUTENCAO' AND uf = %s AND marca != 'NÃO SE APLICA' AND marca != 'NÃO IDENTIFICADA'
+            ORDER BY data_homologacao DESC
+            LIMIT 100;
+        """, (uf,))
+        detail_rows = cur.fetchall()
+        fleet_details = [
+            {
+                "municipio": r[0],
+                "marca": r[1],
+                "modelo": r[2],
+                "ano_estimado": int(r[3]) if str(r[3]).isdigit() else 2020,
+                "ultima_manutencao": str(r[4])
+            } for r in detail_rows
+        ]
+
+        cur.close()
+        conn.close()
+
+        if not fleet_shares and not fleet_details:
+            return get_simulated_frota()
+
+        return {
+            "fleet_shares": fleet_shares,
+            "fleet_details": fleet_details
+        }
+    except Exception as e:
+        logger.error(f"Error fetching frota: {e}")
+        return get_simulated_frota()
+
+
+def get_simulated_frota():
     return {
         "fleet_shares": [
             {"marca": "New Holland", "unidades": 342, "share": 38.5},
@@ -548,11 +673,12 @@ def get_metodologia(
                 SELECT c.categoria_sigla, c.descricao,
                        COUNT(t.id) AS total_transacoes,
                        COALESCE(SUM(t.quantidade * t.valor_unitario), 0) AS volume_total,
-                       COUNT(DISTINCT t.municipio) AS municipios_atingidos
+                       COUNT(DISTINCT t.municipio) AS municipios_atingidos,
+                       c.valor_minimo_unitario, c.valor_maximo_unitario, c.qtd_max
                 FROM config_filtros_categoria c
                 LEFT JOIN view_vendas_maquinas_reais t ON t.categoria_sigla = c.categoria_sigla AND {where_cat}
                 WHERE c.categoria_sigla = %s
-                GROUP BY c.categoria_sigla, c.descricao
+                GROUP BY c.categoria_sigla, c.descricao, c.valor_minimo_unitario, c.valor_maximo_unitario, c.qtd_max
                 ORDER BY c.categoria_sigla;
             """
             params_cat.append(categoria)
@@ -563,10 +689,11 @@ def get_metodologia(
                 SELECT c.categoria_sigla, c.descricao,
                        COUNT(t.id) AS total_transacoes,
                        COALESCE(SUM(t.quantidade * t.valor_unitario), 0) AS volume_total,
-                       COUNT(DISTINCT t.municipio) AS municipios_atingidos
+                       COUNT(DISTINCT t.municipio) AS municipios_atingidos,
+                       c.valor_minimo_unitario, c.valor_maximo_unitario, c.qtd_max
                 FROM view_vendas_maquinas_reais t
                 RIGHT JOIN config_filtros_categoria c ON t.categoria_sigla = c.categoria_sigla
-                GROUP BY c.categoria_sigla, c.descricao
+                GROUP BY c.categoria_sigla, c.descricao, c.valor_minimo_unitario, c.valor_maximo_unitario, c.qtd_max
                 ORDER BY c.categoria_sigla;
             """
             # When no categoria filter, the WHERE clause would break RIGHT JOIN zeros — skip it for categories
@@ -579,7 +706,10 @@ def get_metodologia(
                 "descricao": r[1],
                 "total_transacoes": r[2] or 0,
                 "volume_total": float(r[3]) if r[3] else 0.0,
-                "municipios_atingidos": r[4] or 0
+                "municipios_atingidos": r[4] or 0,
+                "valor_minimo_unitario": float(r[5]) if r[5] is not None else None,
+                "valor_maximo_unitario": float(r[6]) if r[6] is not None else None,
+                "qtd_max": r[7]
             })
 
         # 3. Coverage by UF
@@ -641,14 +771,14 @@ def get_simulated_metodologia():
             "registros_aprovados": 168
         },
         "cobertura_categoria": [
-            {"categoria_sigla": "BHL", "descricao": "Retroescavadeira", "total_transacoes": 168, "volume_total": 71232000.0, "municipios_atingidos": 104},
-            {"categoria_sigla": "EXC", "descricao": "Escavadeira Hidráulica", "total_transacoes": 0, "volume_total": 0, "municipios_atingidos": 0},
-            {"categoria_sigla": "WLS", "descricao": "Pá Carregadeira", "total_transacoes": 0, "volume_total": 0, "municipios_atingidos": 0},
-            {"categoria_sigla": "CPTN", "descricao": "Rolo Compactador", "total_transacoes": 0, "volume_total": 0, "municipios_atingidos": 0},
-            {"categoria_sigla": "MINI", "descricao": "Mini Escavadeira", "total_transacoes": 0, "volume_total": 0, "municipios_atingidos": 0},
-            {"categoria_sigla": "SSL", "descricao": "Mini Carregadeira", "total_transacoes": 0, "volume_total": 0, "municipios_atingidos": 0},
-            {"categoria_sigla": "TH", "descricao": "Manipulador Telescópico", "total_transacoes": 0, "volume_total": 0, "municipios_atingidos": 0},
-            {"categoria_sigla": "MOT", "descricao": "Motoniveladora / Trator de Esteira", "total_transacoes": 0, "volume_total": 0, "municipios_atingidos": 0}
+            {"categoria_sigla": "BHL", "descricao": "Retroescavadeira", "total_transacoes": 168, "volume_total": 71232000.0, "municipios_atingidos": 104, "valor_minimo_unitario": 150000.0, "valor_maximo_unitario": None, "qtd_max": 10},
+            {"categoria_sigla": "EXC", "descricao": "Escavadeira Hidráulica", "total_transacoes": 0, "volume_total": 0, "municipios_atingidos": 0, "valor_minimo_unitario": 150000.0, "valor_maximo_unitario": None, "qtd_max": 10},
+            {"categoria_sigla": "WLS", "descricao": "Pá Carregadeira", "total_transacoes": 0, "volume_total": 0, "municipios_atingidos": 0, "valor_minimo_unitario": 150000.0, "valor_maximo_unitario": None, "qtd_max": 10},
+            {"categoria_sigla": "CPTN", "descricao": "Rolo Compactador", "total_transacoes": 0, "volume_total": 0, "municipios_atingidos": 0, "valor_minimo_unitario": 150000.0, "valor_maximo_unitario": None, "qtd_max": 10},
+            {"categoria_sigla": "MINI", "descricao": "Mini Escavadeira", "total_transacoes": 0, "volume_total": 0, "municipios_atingidos": 0, "valor_minimo_unitario": 100000.0, "valor_maximo_unitario": 250000.0, "qtd_max": 10},
+            {"categoria_sigla": "SSL", "descricao": "Mini Carregadeira", "total_transacoes": 0, "volume_total": 0, "municipios_atingidos": 0, "valor_minimo_unitario": 100000.0, "valor_maximo_unitario": 250000.0, "qtd_max": 10},
+            {"categoria_sigla": "TH", "descricao": "Manipulador Telescópico", "total_transacoes": 0, "volume_total": 0, "municipios_atingidos": 0, "valor_minimo_unitario": 150000.0, "valor_maximo_unitario": None, "qtd_max": 10},
+            {"categoria_sigla": "MOT", "descricao": "Motoniveladora / Trator de Esteira", "total_transacoes": 0, "volume_total": 0, "municipios_atingidos": 0, "valor_minimo_unitario": 150000.0, "valor_maximo_unitario": None, "qtd_max": 10}
         ],
         "cobertura_uf": [
             {"uf": "MG", "total_transacoes": 168, "municipios_atingidos": 104}
@@ -809,11 +939,11 @@ def list_filtros_categoria(current_user: dict = Depends(get_current_user)):
         raise HTTPException(status_code=500, detail="Database connection failed.")
     try:
         cur = conn.cursor()
-        cur.execute("SELECT categoria_sigla, descricao, valor_minimo_unitario, valor_maximo_unitario, created_at FROM config_filtros_categoria ORDER BY categoria_sigla;")
+        cur.execute("SELECT categoria_sigla, descricao, valor_minimo_unitario, valor_maximo_unitario, qtd_max, created_at FROM config_filtros_categoria ORDER BY categoria_sigla;")
         rows = cur.fetchall()
         cur.close()
         conn.close()
-        return [{"categoria_sigla": r[0], "descricao": r[1], "valor_minimo_unitario": float(r[2]), "valor_maximo_unitario": float(r[3]) if r[3] else None, "created_at": str(r[4]) if r[4] else None} for r in rows]
+        return [{"categoria_sigla": r[0], "descricao": r[1], "valor_minimo_unitario": float(r[2]), "valor_maximo_unitario": float(r[3]) if r[3] else None, "qtd_max": r[4], "created_at": str(r[5]) if r[5] else None} for r in rows]
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -826,9 +956,9 @@ def update_filtro_categoria(categoria_sigla: str, item: FiltroConfigItem, curren
     try:
         cur = conn.cursor()
         cur.execute(
-            """UPDATE config_filtros_categoria SET descricao = %s, valor_minimo_unitario = %s, valor_maximo_unitario = %s
+            """UPDATE config_filtros_categoria SET descricao = %s, valor_minimo_unitario = %s, valor_maximo_unitario = %s, qtd_max = %s
                WHERE categoria_sigla = %s;""",
-            (item.descricao, item.valor_minimo_unitario, item.valor_maximo_unitario, categoria_sigla)
+            (item.descricao, item.valor_minimo_unitario, item.valor_maximo_unitario, item.qtd_max, categoria_sigla)
         )
         conn.commit()
         cur.close()

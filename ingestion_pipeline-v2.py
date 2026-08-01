@@ -51,54 +51,56 @@ ALL_UFS = [
 ]
 
 # ─── 8 categorias + termos de busca (SPEC §4.2) ─────────────────────
+# Limites abaixo são FALLBACK estático. Os valores reais são carregados da
+# tabela config_filtros_categoria (SPEC §4.4: configurável por categoria).
 CATEGORIES = {
     "BHL": {
         "name": "Retroescavadeira",
         "search_terms": ["retroescavadeira"],
         "keywords": [r"retroescavadeira", r"retro\s*escavadeira"],
-        "min_price": 150000.00, "max_price": None
+        "min_price": 150000.00, "max_price": None, "qtd_max": 10
     },
     "EXC": {
         "name": "Escavadeira Hidráulica",
         "search_terms": ["escavadeira hidraulica", "escavadeira de esteira"],
         "keywords": [r"escavadeira\s+hidraulica", r"escavadeira\s+de\s+esteira", r"escavadeira\s+sobre\s+esteira"],
-        "min_price": 150000.00, "max_price": None
+        "min_price": 150000.00, "max_price": None, "qtd_max": 10
     },
     "WLS": {
         "name": "Pá Carregadeira",
         "search_terms": ["pa carregadeira"],
         "keywords": [r"pa\s+carregadeira", r"pá\s+carregadeira", r"carregadeira\s+de\s+rodas"],
-        "min_price": 150000.00, "max_price": None
+        "min_price": 150000.00, "max_price": None, "qtd_max": 10
     },
     "CPTN": {
         "name": "Rolo Compactador",
         "search_terms": ["rolo compactador"],
         "keywords": [r"rolo\s+compactador", r"compactador\s+vibratorio", r"rolo\s+estatico"],
-        "min_price": 150000.00, "max_price": None
+        "min_price": 150000.00, "max_price": None, "qtd_max": 10
     },
     "MINI": {
         "name": "Mini Escavadeira",
         "search_terms": ["mini escavadeira", "miniescavadeira"],
         "keywords": [r"mini\s*escavadeira", r"miniescavadeira"],
-        "min_price": 100000.00, "max_price": 250000.00
+        "min_price": 100000.00, "max_price": 250000.00, "qtd_max": 10
     },
     "SSL": {
         "name": "Mini Carregadeira",
         "search_terms": ["mini carregadeira", "minicarregadeira", "skid steer"],
         "keywords": [r"mini\s*carregadeira", r"minicarregadeira", r"skid\s+steer"],
-        "min_price": 100000.00, "max_price": 250000.00
+        "min_price": 100000.00, "max_price": 250000.00, "qtd_max": 10
     },
     "TH": {
         "name": "Manipulador Telescópico",
         "search_terms": ["manipulador telescopico", "telehandler"],
         "keywords": [r"manipulador\s+telescopico", r"telehandler"],
-        "min_price": 150000.00, "max_price": None
+        "min_price": 150000.00, "max_price": None, "qtd_max": 10
     },
     "MOT": {
         "name": "Motoniveladora / Trator de Esteira",
         "search_terms": ["motoniveladora", "trator de esteira"],
         "keywords": [r"motoniveladora", r"trator\s+de\s+esteira", r"trator\s+esteira"],
-        "min_price": 150000.00, "max_price": None
+        "min_price": 150000.00, "max_price": None, "qtd_max": 10
     }
 }
 
@@ -184,7 +186,8 @@ def get_db_url() -> str:
 
 
 def load_category_limits_from_db():
-    """Busca limites de preço da tabela config_filtros_categoria e sobrescreve as chaves min_price/max_price (Fallback em caso de falha)."""
+    """Busca limites de preço E quantidade da tabela config_filtros_categoria e sobrescreve as chaves
+    min_price/max_price/qtd_max (Fallback estático em caso de falha). SPEC §4.4 — configurável por categoria."""
     db_url = get_db_url()
     if not HAS_PSYCOPG or not db_url:
         logger.warning("DB_URL não configurada ou psycopg2 indisponível. Usando limites estáticos (fallback).")
@@ -192,18 +195,20 @@ def load_category_limits_from_db():
     try:
         conn = psycopg2.connect(db_url)
         cur = conn.cursor()
-        cur.execute("SELECT categoria_sigla, valor_minimo_unitario, valor_maximo_unitario FROM config_filtros_categoria;")
+        cur.execute("SELECT categoria_sigla, valor_minimo_unitario, valor_maximo_unitario, qtd_max FROM config_filtros_categoria;")
         rows = cur.fetchall()
         if not rows:
             logger.warning("Tabela config_filtros_categoria vazia. Usando limites estáticos (fallback).")
         else:
-            for sigla, v_min, v_max in rows:
+            for sigla, v_min, v_max, qtd_max in rows:
                 if sigla in CATEGORIES:
                     if v_min is not None:
                         CATEGORIES[sigla]["min_price"] = float(v_min)
                     if v_max is not None:
                         CATEGORIES[sigla]["max_price"] = float(v_max)
-            logger.info("Limites de preço atualizados com sucesso via banco de dados.")
+                    if qtd_max is not None:
+                        CATEGORIES[sigla]["qtd_max"] = int(qtd_max)
+            logger.info("Limites de preço e quantidade atualizados com sucesso via banco de dados.")
         cur.close()
         conn.close()
     except Exception as e:
@@ -215,7 +220,7 @@ def determine_record_type(descricao: str) -> str:
     if TIPO_REGEX["PECAS_MANUTENCAO"].search(desc):
         return "PECAS_MANUTENCAO"
     if TIPO_REGEX["LOCACAO"].search(desc):
-        return "SERVICO_LOCACAO"
+        return "LOCACAO"
     if TIPO_REGEX["COMPRA_NOVA"].search(desc):
         return "COMPRA_NOVA"
     return "INDEFINIDO"
@@ -333,17 +338,26 @@ def processar_item(item: dict, categoria_sigla: str, uf: str) -> Optional[dict]:
         "marca": "NÃO SE APLICA", "modelo": "NÃO SE APLICA", "ano": "NÃO SE APLICA"
     }
 
-    # Filtro de limites de preço dinâmicos
-    config_cat = CATEGORIES.get(cat_final)
-    if config_cat:
-        min_p = config_cat.get("min_price")
-        max_p = config_cat.get("max_price")
-        
-        # Descartar se o valor for menor que o mínimo ou maior que o máximo (quando houver)
-        if min_p is not None and valor_unitario < min_p:
-            return None
-        if max_p is not None and max_p > 0 and valor_unitario > max_p:
-            return None
+    # Filtro de limites dinâmicos por categoria (Apenas para COMPRA_NOVA de máquina real §4.4)
+    # Preço: configuração da tabela config_filtros_categoria (fallback estático).
+    # Quantidade: exige valor inteiro positivo e respeita qtd_max da categoria (ex.: 250,5 horas de
+    # serviço nunca passa; escavadeira grande pode ter qtd_max maior que 10).
+    if tipo == "COMPRA_NOVA":
+        config_cat = CATEGORIES.get(cat_final)
+        if config_cat:
+            min_p = config_cat.get("min_price")
+            max_p = config_cat.get("max_price")
+            qtd_max = config_cat.get("qtd_max", 10)
+
+            # Descartar se o valor for menor que o mínimo ou maior que o máximo (quando houver)
+            if min_p is not None and valor_unitario < min_p:
+                return None
+            if max_p is not None and max_p > 0 and valor_unitario > max_p:
+                return None
+
+            # Descartar quantidade fracionária (hora-máquina), zero ou acima do limite da categoria
+            if quantidade <= 0 or quantidade != int(quantidade) or quantidade > qtd_max:
+                return None
 
     orgao_nome = ""
     orgao_data = item.get("orgao", {}) or {}
@@ -601,8 +615,8 @@ def run_pipeline():
         r for r in registros
         if r["situacao"] == "HOMOLOGADO"
         and r["tipo_registro"] == "COMPRA_NOVA"
-        and r.get("quantidade", 0) <= 10
         and r.get("quantidade", 0) == int(r.get("quantidade", 0))
+        and r.get("quantidade", 0) <= CATEGORIES.get(r.get("categoria_sigla", ""), {}).get("qtd_max", 10)
     ])
 
     logger.info(f"Origem: {origem}")
