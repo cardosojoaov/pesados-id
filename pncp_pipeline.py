@@ -114,7 +114,7 @@ def normalizar_fornecedor(fornecedor, regras):
 
 
 def extrair_dados_pncp(termo):
-    print(f"Coletando para: {termo}")
+    print(f"Coletando para: {termo}", flush=True)
     pagina = 1
     tam_pagina = 100
     base_url = "https://pncp.gov.br/api/search/"
@@ -131,11 +131,11 @@ def extrair_dados_pncp(termo):
         }
         
         try:
-            resp = requests.get(base_url, params=params, headers=HEADERS)
+            resp = requests.get(base_url, params=params, headers=HEADERS, timeout=15)
             resp.raise_for_status()
             data = resp.json()
         except Exception as e:
-            print(f"Erro ao buscar página {pagina} de {termo}: {e}")
+            print(f"Erro ao buscar página {pagina} de {termo}: {e}", flush=True)
             break
 
         items = data.get("items", [])
@@ -156,7 +156,7 @@ def extrair_dados_pncp(termo):
                 # Buca itens da compra
                 url_itens = f"https://pncp.gov.br/api/pncp/v1/orgaos/{cnpj}/compras/{ano}/{seq}/itens"
                 try:
-                    resp_itens = requests.get(url_itens, headers=HEADERS)
+                    resp_itens = requests.get(url_itens, headers=HEADERS, timeout=15)
                     time.sleep(0.35) # rate limit
                     if resp_itens.status_code == 200:
                         itens_compra = resp_itens.json()
@@ -164,7 +164,7 @@ def extrair_dados_pncp(termo):
                             numero_item = i_c.get("numeroItem")
                             # Busca resultados (onde está o fornecedor e valor)
                             url_resultados = f"{url_itens}/{numero_item}/resultados"
-                            resp_res = requests.get(url_resultados, headers=HEADERS)
+                            resp_res = requests.get(url_resultados, headers=HEADERS, timeout=15)
                             time.sleep(0.35)
                             
                             fornecedor = None
