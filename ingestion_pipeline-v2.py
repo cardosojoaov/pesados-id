@@ -237,7 +237,7 @@ def classify_category(descricao: str) -> Optional[str]:
 
 def normalizar_fornecedor(razao: str) -> str:
     """Normaliza razão social usando regras hardcoded (SPEC §4.4)."""
-    upper = razao.upper().strip()
+    upper = str(razao or "").upper().strip()
 
     mapeamentos = [
         (r"BANDEIRANTES|BAMAQ|BMAQ", "BAMAQ"),
@@ -302,7 +302,7 @@ def fetch_item_details(cnpj: str, ano: int, sequencial: int) -> Optional[list]:
 
 def processar_item(item: dict, categoria_sigla: str, uf: str) -> Optional[dict]:
     """Processa um item da API em um registro da transacao."""
-    descricao = item.get("descricao", "") or ""
+    descricao = str(item.get("descricao") or "")
     if not descricao:
         return None
 
@@ -320,12 +320,14 @@ def processar_item(item: dict, categoria_sigla: str, uf: str) -> Optional[dict]:
     except (ValueError, TypeError):
         pass
 
-    fornecedor = (item.get("fornecedor", {}) or {}).get("razaoSocial", "") or ""
+    raw_forn = (item.get("fornecedor", {}) or {}).get("razaoSocial") or item.get("fornecedorNome") or ""
+    fornecedor = str(raw_forn)
     fornecedor_normalizado = normalizar_fornecedor(fornecedor)
 
-    situacao = (item.get("situacaoCompraItem", "") or "").upper()
+    raw_sit = item.get("situacaoCompraItemNome") or item.get("situacaoCompraItem") or ""
+    situacao = str(raw_sit).upper()
     # Mapear situações
-    if situacao in ("HOMOLOGADO", "HOMOLOGADO_PARCIAL", "ADJUDICADO", "ADJUDICADO_PARCIAL"):
+    if any(h in situacao for h in ("HOMOLOGADO", "ADJUDICADO")):
         situacao = "HOMOLOGADO"
     else:
         situacao = situacao if situacao else "SEM_RESULTADO"
