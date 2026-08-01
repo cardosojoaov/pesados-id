@@ -1,0 +1,31 @@
+name: Pipeline PNCP
+
+on:
+  schedule:
+    # Roda todos os dias às 02:00 UTC (aprox 23:00 de Brasilia)
+    - cron: '0 2 * * *'
+  workflow_dispatch: # Permite rodar manualmente pelo botão "Run workflow"
+
+jobs:
+  run-pipeline:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install psycopg requests python-dotenv
+          
+      - name: Run PNCP Pipeline
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          python pncp_pipeline.py
