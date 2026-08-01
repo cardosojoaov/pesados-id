@@ -28,4 +28,4 @@ jobs:
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
         run: |
-          python pncp_pipeline.py
+          python -u pncp_pipeline.py
