@@ -420,7 +420,7 @@ def processar_item(item: dict, categoria_sigla: str, uf: str) -> Optional[dict]:
         "fornecedor_original": fornecedor,
         "quantidade": quantidade,
         "valor_unitario": valor_unitario,
-        "data_homologacao": data_hom[:10] if data_hom else "",
+        "data_homologacao": data_hom[:10] if data_hom else None,
         "descricao_original": descricao[:500] if descricao else "",
         "url_origem": url_origem,
         "categoria_sigla": cat_final,
