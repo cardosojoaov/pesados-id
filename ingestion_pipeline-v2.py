@@ -593,18 +593,28 @@ def ingest_to_supabase(records: List[Dict[str, Any]], db_url: str):
     try:
         conn = psycopg2.connect(db_url)
         cur = conn.cursor()
-        success = 0
-        for rec in records:
-            try:
-                cur.execute(query, rec)
-                success += 1
-            except Exception as e:
-                conn.rollback()
-                logger.warning(f"Falha ao inserir {rec.get('cnpj_orgao')}: {e}")
-        conn.commit()
+        
+        try:
+            from psycopg2.extras import execute_batch
+            execute_batch(cur, query, records, page_size=500)
+            conn.commit()
+            logger.info(f"{len(records)} registros inseridos no banco.")
+        except Exception as e:
+            conn.rollback()
+            logger.warning(f"Falha no batch insert ({e}). Tentando inserção individual...")
+            success = 0
+            for rec in records:
+                try:
+                    cur.execute(query, rec)
+                    conn.commit()
+                    success += 1
+                except Exception as ex:
+                    conn.rollback()
+                    logger.warning(f"Falha ao inserir {rec.get('cnpj_orgao')}: {ex}")
+            logger.info(f"{success} registros inseridos individualmente no banco.")
+            
         cur.close()
         conn.close()
-        logger.info(f"{success} registros inseridos no banco.")
     except Exception as e:
         logger.error(f"Erro de conexão com banco: {e}")
 
