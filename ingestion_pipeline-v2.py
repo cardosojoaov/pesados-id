@@ -341,52 +341,57 @@ def sleep_entre_chamadas():
 
 # ─── API PNCP ───────────────────────────────────────────────────────
 
-def search_pncp(termo: str, uf: str, pagina: int = 1, max_retries: int = 6) -> Optional[dict]:
-    """Chama o endpoint de busca do PNCP com retries robustos e backoff exponencial com jitter."""
-    url = (
-        f"https://pncp.gov.br/api/search/"
-        f"?q={termo}&tipos_documento=edital&ordenacao=-data"
-        f"&pagina={pagina}&tam_pagina=100&status=todos&ufs={uf}"
-    )
+def search_pncp(termo: str, uf: str, pagina: int = 1, max_retries: int = 5) -> Optional[dict]:
+    """Chama o endpoint de busca do PNCP com params dict, timeout curto de conexão e retries com backoff."""
+    url = "https://pncp.gov.br/api/search/"
+    params = {
+        "q": termo,
+        "tipos_documento": "edital",
+        "ordenacao": "-data",
+        "pagina": pagina,
+        "tam_pagina": 100,
+        "status": "todos",
+        "ufs": uf
+    }
     for attempt in range(max_retries):
         try:
-            r = requests.get(url, headers=HEADERS, timeout=20)
+            r = requests.get(url, params=params, headers=HEADERS, timeout=(5.0, 25.0))
             if r.status_code == 200:
                 return r.json()
             elif r.status_code in [500, 502, 503, 504, 429]:
-                backoff = (2 ** attempt) + random.uniform(1.5, 4.0)
+                backoff = (1.5 ** attempt) + random.uniform(1.0, 3.0)
                 logger.warning(f"Search API HTTP {r.status_code} para {termo}/{uf} p.{pagina} (tentativa {attempt+1}/{max_retries}) — aguardando {backoff:.1f}s")
                 time.sleep(backoff)
             else:
                 logger.warning(f"Search API HTTP {r.status_code} para {termo}/{uf} p.{pagina}")
                 return None
         except requests.RequestException as e:
-            backoff = (2 ** attempt) + random.uniform(1.5, 4.0)
-            logger.warning(f"Erro de conexão Search API: {e} (tentativa {attempt+1}/{max_retries}) — aguardando {backoff:.1f}s")
+            backoff = (1.5 ** attempt) + random.uniform(1.0, 3.0)
+            logger.warning(f"Erro de conexão Search API ({termo}/{uf}): {e} (tentativa {attempt+1}/{max_retries}) — aguardando {backoff:.1f}s")
             time.sleep(backoff)
     return None
 
 
-def fetch_item_details(cnpj: str, ano: int, sequencial: int, max_retries: int = 5) -> Optional[list]:
+def fetch_item_details(cnpj: str, ano: int, sequencial: int, max_retries: int = 4) -> Optional[list]:
     """Obtém lista de itens de uma compra (/itens)."""
     url = f"https://pncp.gov.br/api/pncp/v1/orgaos/{cnpj}/compras/{ano}/{sequencial}/itens"
     for attempt in range(max_retries):
         try:
-            r = requests.get(url, headers=HEADERS, timeout=20)
+            r = requests.get(url, headers=HEADERS, timeout=(5.0, 20.0))
             if r.status_code == 200:
                 return r.json()
             elif r.status_code in [500, 502, 503, 504, 429]:
-                backoff = (2 ** attempt) + random.uniform(1.0, 3.0)
+                backoff = (1.5 ** attempt) + random.uniform(0.5, 2.0)
                 time.sleep(backoff)
             else:
                 return None
         except requests.RequestException:
-            backoff = (2 ** attempt) + random.uniform(1.0, 3.0)
+            backoff = (1.5 ** attempt) + random.uniform(0.5, 2.0)
             time.sleep(backoff)
     return None
 
 
-def fetch_item_resultados(cnpj: str, ano: int, sequencial: int, numero_item: int, max_retries: int = 5) -> Optional[list]:
+def fetch_item_resultados(cnpj: str, ano: int, sequencial: int, numero_item: int, max_retries: int = 4) -> Optional[list]:
     """Obtém os resultados de um item específico (/itens/{n}/resultados).
     ESSENCIAL: Este é o único endpoint que retorna o fornecedor vencedor
     e o valor unitário homologado real (SPEC §4.3 armadilha #3).
@@ -397,19 +402,19 @@ def fetch_item_resultados(cnpj: str, ano: int, sequencial: int, numero_item: int
     )
     for attempt in range(max_retries):
         try:
-            r = requests.get(url, headers=HEADERS, timeout=20)
+            r = requests.get(url, headers=HEADERS, timeout=(5.0, 20.0))
             if r.status_code == 200:
                 return r.json()
             elif r.status_code == 404:
                 # Item sem resultado publicado — normal, não é erro
                 return []
             elif r.status_code in [500, 502, 503, 504, 429]:
-                backoff = (2 ** attempt) + random.uniform(1.0, 3.0)
+                backoff = (1.5 ** attempt) + random.uniform(0.5, 2.0)
                 time.sleep(backoff)
             else:
                 return []
         except requests.RequestException:
-            backoff = (2 ** attempt) + random.uniform(1.0, 3.0)
+            backoff = (1.5 ** attempt) + random.uniform(0.5, 2.0)
             time.sleep(backoff)
     return []
 
