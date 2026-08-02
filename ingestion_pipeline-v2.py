@@ -296,27 +296,38 @@ def search_pncp(termo: str, uf: str, pagina: int = 1) -> Optional[dict]:
         f"?q={termo}&tipos_documento=edital&ordenacao=-data"
         f"&pagina={pagina}&tam_pagina=100&status=todos&ufs={uf}"
     )
-    try:
-        r = requests.get(url, headers=HEADERS, timeout=15)
-        if r.status_code != 200:
-            logger.warning(f"Search API retornou {r.status_code} para {termo}/{uf} p.{pagina}")
-            return None
-        return r.json()
-    except requests.RequestException as e:
-        logger.warning(f"Erro ao chamar search API: {e}")
-        return None
+    for attempt in range(3):
+        try:
+            r = requests.get(url, headers=HEADERS, timeout=15)
+            if r.status_code == 200:
+                return r.json()
+            elif r.status_code in [500, 502, 503, 504, 429]:
+                logger.warning(f"Search API retornou {r.status_code} para {termo}/{uf} p.{pagina} (tentativa {attempt + 1}/3)")
+                time.sleep(2 ** attempt)
+            else:
+                logger.warning(f"Search API retornou {r.status_code} para {termo}/{uf} p.{pagina}")
+                return None
+        except requests.RequestException as e:
+            logger.warning(f"Erro ao chamar search API: {e} (tentativa {attempt + 1}/3)")
+            time.sleep(2 ** attempt)
+    return None
 
 
 def fetch_item_details(cnpj: str, ano: int, sequencial: int) -> Optional[list]:
     """Obtém itens de uma compra específica."""
     url = f"https://pncp.gov.br/api/pncp/v1/orgaos/{cnpj}/compras/{ano}/{sequencial}/itens"
-    try:
-        r = requests.get(url, headers=HEADERS, timeout=15)
-        if r.status_code != 200:
-            return None
-        return r.json()
-    except requests.RequestException:
-        return None
+    for attempt in range(3):
+        try:
+            r = requests.get(url, headers=HEADERS, timeout=15)
+            if r.status_code == 200:
+                return r.json()
+            elif r.status_code in [500, 502, 503, 504, 429]:
+                time.sleep(2 ** attempt)
+            else:
+                return None
+        except requests.RequestException:
+            time.sleep(2 ** attempt)
+    return None
 
 
 # ─── Processamento de itens ─────────────────────────────────────────

@@ -19,6 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 240
     strategy:
+      max-parallel: 2
       matrix:
         category: [BHL, EXC, WLS, CPTN, MINI, SSL, TH, MOT]
       fail-fast: false
