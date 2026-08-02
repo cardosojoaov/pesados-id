@@ -493,10 +493,14 @@ def crawlear_pncp() -> List[Dict[str, Any]]:
                         if not cnpj or not ano or not seq:
                             continue
                         
-                        # CARGA INCREMENTAL: Pular se já estiver no banco
-                        if f"{cnpj}_{ano}_{seq}" in chaves_existentes:
-                            logger.debug(f"Pulando {cnpj}_{ano}_{seq}: Já existe no banco.")
+                        chave = f"{cnpj}_{ano}_{seq}"
+                        # CARGA INCREMENTAL: Pular se já estiver no banco ou se já foi processado nesta execução
+                        if chave in chaves_existentes:
+                            logger.debug(f"Pulando {chave}: Já processado ou existente no banco.")
                             continue
+
+                        # Registrar chave em memória para não consultar a mesma compra duas vezes
+                        chaves_existentes.add(chave)
 
                         itens_detalhe = fetch_item_details(cnpj, ano, seq)
                         total_chamadas += 1

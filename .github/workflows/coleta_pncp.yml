@@ -17,7 +17,7 @@ jobs:
   coleta:
     name: PNCP Crawler [${{ matrix.category }}]
     runs-on: ubuntu-latest
-    timeout-minutes: 55
+    timeout-minutes: 240
     strategy:
       matrix:
         category: [BHL, EXC, WLS, CPTN, MINI, SSL, TH, MOT]
@@ -54,7 +54,7 @@ jobs:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
           TARGET_CATEGORY: ${{ matrix.category }}
         run: |
-          timeout 3000 python ingestion_pipeline-v2.py
+          timeout 14000 python ingestion_pipeline-v2.py
         continue-on-error: false
 
       - name: Exibir summary do pipeline
