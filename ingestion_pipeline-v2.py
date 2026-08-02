@@ -264,7 +264,7 @@ def load_normalizacao_rules_from_db():
         cur.close()
         conn.close()
         if rows:
-            _NORMALIZACAO_RULES_DB = [(r"\b" + re.escape(row[0]) + r"\b", row[1]) for row in rows]
+            _NORMALIZACAO_RULES_DB = [(r"(?<!\w)" + re.escape(row[0].strip()) + r"(?!\w)", row[1].strip()) for row in rows]
             logger.info(f"{len(rows)} regras de normalização carregadas do banco.")
         else:
             logger.warning("normalizacao_fornecedores vazia. Usando regras hardcoded.")
@@ -303,9 +303,8 @@ def determine_record_type(descricao: str) -> str:
         return "PECAS_MANUTENCAO"
     if TIPO_REGEX["LOCACAO"].search(descricao):
         return "LOCACAO"
-    if TIPO_REGEX["COMPRA_NOVA"].search(descricao):
-        return "COMPRA_NOVA"
-    return "INDEFINIDO"
+    # Se não for LOCAÇÃO nem PEÇAS_MANUTENÇÃO, assumimos que é uma compra de equipamento.
+    return "COMPRA_NOVA"
 
 
 def classify_category(descricao: str) -> Optional[str]:
