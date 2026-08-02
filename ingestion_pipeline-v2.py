@@ -192,9 +192,12 @@ def extrair_dados_frota(descricao_item: str) -> dict:
 
 # ─── Cabeçalhos obrigatórios (SPEC §4.2) ────────────────────────────
 HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
     "Referer": "https://pncp.gov.br/app/editais",
     "Accept": "application/json, text/plain, */*",
+    "Accept-Language": "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7",
+    "Cache-Control": "no-cache",
+    "Pragma": "no-cache",
 }
 
 # ─── Helpers ────────────────────────────────────────────────────────
@@ -338,48 +341,52 @@ def sleep_entre_chamadas():
 
 # ─── API PNCP ───────────────────────────────────────────────────────
 
-def search_pncp(termo: str, uf: str, pagina: int = 1) -> Optional[dict]:
-    """Chama o endpoint de busca do PNCP. Retorna dict ou None."""
+def search_pncp(termo: str, uf: str, pagina: int = 1, max_retries: int = 6) -> Optional[dict]:
+    """Chama o endpoint de busca do PNCP com retries robustos e backoff exponencial com jitter."""
     url = (
         f"https://pncp.gov.br/api/search/"
         f"?q={termo}&tipos_documento=edital&ordenacao=-data"
         f"&pagina={pagina}&tam_pagina=100&status=todos&ufs={uf}"
     )
-    for attempt in range(3):
+    for attempt in range(max_retries):
         try:
-            r = requests.get(url, headers=HEADERS, timeout=15)
+            r = requests.get(url, headers=HEADERS, timeout=20)
             if r.status_code == 200:
                 return r.json()
             elif r.status_code in [500, 502, 503, 504, 429]:
-                logger.warning(f"Search API {r.status_code} para {termo}/{uf} p.{pagina} (tentativa {attempt+1}/3)")
-                time.sleep(2 ** attempt)
+                backoff = (2 ** attempt) + random.uniform(1.5, 4.0)
+                logger.warning(f"Search API HTTP {r.status_code} para {termo}/{uf} p.{pagina} (tentativa {attempt+1}/{max_retries}) — aguardando {backoff:.1f}s")
+                time.sleep(backoff)
             else:
-                logger.warning(f"Search API {r.status_code} para {termo}/{uf} p.{pagina}")
+                logger.warning(f"Search API HTTP {r.status_code} para {termo}/{uf} p.{pagina}")
                 return None
         except requests.RequestException as e:
-            logger.warning(f"Erro search API: {e} (tentativa {attempt+1}/3)")
-            time.sleep(2 ** attempt)
+            backoff = (2 ** attempt) + random.uniform(1.5, 4.0)
+            logger.warning(f"Erro de conexão Search API: {e} (tentativa {attempt+1}/{max_retries}) — aguardando {backoff:.1f}s")
+            time.sleep(backoff)
     return None
 
 
-def fetch_item_details(cnpj: str, ano: int, sequencial: int) -> Optional[list]:
+def fetch_item_details(cnpj: str, ano: int, sequencial: int, max_retries: int = 5) -> Optional[list]:
     """Obtém lista de itens de uma compra (/itens)."""
     url = f"https://pncp.gov.br/api/pncp/v1/orgaos/{cnpj}/compras/{ano}/{sequencial}/itens"
-    for attempt in range(3):
+    for attempt in range(max_retries):
         try:
-            r = requests.get(url, headers=HEADERS, timeout=15)
+            r = requests.get(url, headers=HEADERS, timeout=20)
             if r.status_code == 200:
                 return r.json()
             elif r.status_code in [500, 502, 503, 504, 429]:
-                time.sleep(2 ** attempt)
+                backoff = (2 ** attempt) + random.uniform(1.0, 3.0)
+                time.sleep(backoff)
             else:
                 return None
         except requests.RequestException:
-            time.sleep(2 ** attempt)
+            backoff = (2 ** attempt) + random.uniform(1.0, 3.0)
+            time.sleep(backoff)
     return None
 
 
-def fetch_item_resultados(cnpj: str, ano: int, sequencial: int, numero_item: int) -> Optional[list]:
+def fetch_item_resultados(cnpj: str, ano: int, sequencial: int, numero_item: int, max_retries: int = 5) -> Optional[list]:
     """Obtém os resultados de um item específico (/itens/{n}/resultados).
     ESSENCIAL: Este é o único endpoint que retorna o fornecedor vencedor
     e o valor unitário homologado real (SPEC §4.3 armadilha #3).
@@ -388,20 +395,22 @@ def fetch_item_resultados(cnpj: str, ano: int, sequencial: int, numero_item: int
         f"https://pncp.gov.br/api/pncp/v1/orgaos/{cnpj}/compras/{ano}/{sequencial}"
         f"/itens/{numero_item}/resultados"
     )
-    for attempt in range(3):
+    for attempt in range(max_retries):
         try:
-            r = requests.get(url, headers=HEADERS, timeout=15)
+            r = requests.get(url, headers=HEADERS, timeout=20)
             if r.status_code == 200:
                 return r.json()
             elif r.status_code == 404:
                 # Item sem resultado publicado — normal, não é erro
                 return []
             elif r.status_code in [500, 502, 503, 504, 429]:
-                time.sleep(2 ** attempt)
+                backoff = (2 ** attempt) + random.uniform(1.0, 3.0)
+                time.sleep(backoff)
             else:
                 return []
         except requests.RequestException:
-            time.sleep(2 ** attempt)
+            backoff = (2 ** attempt) + random.uniform(1.0, 3.0)
+            time.sleep(backoff)
     return []
 
 
@@ -790,20 +799,35 @@ def run_pipeline():
 
     db_url = get_db_url()
 
-    # 2. Testar conectividade com a API PNCP
+    # Jitter inicial em modo matriz para evitar concorrência simultânea na API do PNCP
+    target_category = os.environ.get("TARGET_CATEGORY")
+    if target_category:
+        stagger = random.uniform(1.5, 9.0)
+        logger.info(f"Modo Matriz [{target_category}]: Aguardando jitter de {stagger:.1f}s para desincronizar requisições...")
+        time.sleep(stagger)
+
+    # 2. Testar conectividade com a API PNCP com rotação de UFs e termo dinâmico
     registros = []
-    try:
-        logger.info("Testando conexão com a API do PNCP...")
-        test = search_pncp("retroescavadeira", "MG", 1)
-        if test and (test.get("items") or test.get("data")):
-            logger.info("API PNCP respondeu. Iniciando crawler nacional...")
-            registros = crawlear_pncp()
+    termo_teste = "retroescavadeira"
+    if target_category and target_category in CATEGORIES:
+        termo_teste = CATEGORIES[target_category]["search_terms"][0]
+
+    api_conectada = False
+    logger.info(f"Testando conexão com a API do PNCP (termo: '{termo_teste}')...")
+    for test_uf in ["MG", "SP", "DF"]:
+        test = search_pncp(termo_teste, test_uf, 1, max_retries=4)
+        if test and (test.get("items") or test.get("data") is not None):
+            api_conectada = True
+            logger.info(f"API PNCP respondeu com sucesso para '{termo_teste}' / UF {test_uf}. Iniciando crawler...")
+            break
         else:
-            logger.error("API PNCP não retornou dados. Abortando para preservar integridade.")
-            sys.exit(1)
-    except Exception as e:
-        logger.error(f"API PNCP indisponível: {e}. Abortando.")
-        sys.exit(1)
+            logger.warning(f"Teste de conectividade na UF {test_uf} não obteve resposta. Tentando próxima UF...")
+            time.sleep(random.uniform(2.0, 4.0))
+
+    if not api_conectada:
+        logger.warning("Conexão inicial com a API PNCP teve oscilações nas UFs de teste. Prosseguindo diretamente com a coleta nacional...")
+
+    registros = crawlear_pncp()
 
     if not registros:
         logger.warning("Nenhum registro retornado pelo PNCP nesta execução.")
