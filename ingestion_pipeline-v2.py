@@ -414,7 +414,7 @@ def processar_item(item: dict, categoria_sigla: str, uf: str, cnpj: str, ano: in
     numero_item = int(item.get("numeroItem", 0) or 0)
 
     url_origem = (
-        f"https://pncp.gov.br/app/compras/"
+        f"https://pncp.gov.br/app/editais/"
         f"{cnpj_orgao}/{ano_compra}/{sequencial}"
     )
 
@@ -563,7 +563,7 @@ def generate_pilot_seed_data() -> List[Dict[str, Any]]:
             "valor_unitario": 424000.00,
             "data_homologacao": "2025-10-15",
             "descricao_original": "Aquisição de Retroescavadeira Nova de fábrica, motor diesel 4x4.",
-            "url_origem": f"https://pncp.gov.br/app/compras/{i:014d}/2025/{i}",
+            "url_origem": f"https://pncp.gov.br/app/editais/{i:014d}/2025/{i}",
             "categoria_sigla": "BHL",
             "situacao": "HOMOLOGADO",
             "tipo_registro": "COMPRA_NOVA",

@@ -706,7 +706,7 @@ function getMockedData(categoria, uf) {
         valor_unitario: 424000.00,
         valor_total: 424000.00,
         data: "2025-10-15",
-        url: `https://pncp.gov.br/app/compras/00000000000000/2025/${i+1}`
+        url: `https://pncp.gov.br/app/editais/00000000000000/2025/${i+1}`
       }))
     };
   }
