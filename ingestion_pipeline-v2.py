@@ -321,12 +321,13 @@ def fetch_item_details(cnpj: str, ano: int, sequencial: int) -> Optional[list]:
 
 # ─── Processamento de itens ─────────────────────────────────────────
 
-def processar_item(item: dict, categoria_sigla: str, uf: str, objeto_compra: str = "") -> Optional[dict]:
+def processar_item(item: dict, categoria_sigla: str, uf: str, cnpj: str, ano: int, seq: int, item_busca: dict) -> Optional[dict]:
     """Processa um item da API em um registro da transacao."""
     descricao = str(item.get("descricao") or "")
     if not descricao:
         return None
 
+    objeto_compra = item_busca.get("title", "") or item_busca.get("objetoCompra", "") or item_busca.get("description", "")
     descricao_completa = f"{objeto_compra} {descricao}"
     tipo = determine_record_type(descricao_completa)
 
@@ -384,26 +385,21 @@ def processar_item(item: dict, categoria_sigla: str, uf: str, objeto_compra: str
             if quantidade <= 0 or quantidade != int(quantidade) or quantidade > qtd_max:
                 return None
 
-    orgao_nome = ""
-    orgao_data = item.get("orgao", {}) or {}
-    if isinstance(orgao_data, dict):
-        orgao_nome = orgao_data.get("nome", "") or ""
+    orgao_nome = item_busca.get("orgao_nome") or item_busca.get("orgaoNome") or ""
     if not orgao_nome:
-        orgao_nome = item.get("orgaoNome", "") or item.get("orgao", "") or ""
+        orgao_data = item_busca.get("orgao", {}) or {}
+        orgao_nome = orgao_data.get("nome", "") if isinstance(orgao_data, dict) else str(orgao_data)
 
-    municipio = item.get("municipio", {}) or {}
-    if isinstance(municipio, dict):
-        municipio_nome = municipio.get("nome", "") or ""
-    else:
-        municipio_nome = str(municipio) if municipio else ""
+    municipio_nome = item_busca.get("municipio_nome") or item_busca.get("municipioNome") or ""
     if not municipio_nome:
-        municipio_nome = item.get("municipioNome", "") or ""
+        municipio = item_busca.get("municipio", {}) or {}
+        municipio_nome = municipio.get("nome", "") if isinstance(municipio, dict) else str(municipio)
 
     data_hom = item.get("dataHomologacao", "") or item.get("dataResultado", "") or ""
 
-    cnpj_orgao = str(item.get("cnpjOrgao", "") or "")
-    ano_compra = int(item.get("anoCompra", 0) or 0)
-    sequencial = int(item.get("sequencialCompra", 0) or 0)
+    cnpj_orgao = str(cnpj)
+    ano_compra = int(ano)
+    sequencial = int(seq)
     numero_item = int(item.get("numeroItem", 0) or 0)
 
     url_origem = (
@@ -509,7 +505,7 @@ def crawlear_pncp() -> List[Dict[str, Any]]:
                             continue
 
                         for item_det in itens_detalhe:
-                            registro = processar_item(item_det, sigla, uf, item_busca.get("objetoCompra", ""))
+                            registro = processar_item(item_det, sigla, uf, cnpj, ano, seq, item_busca)
                             if registro:
                                 todos_registros.append(registro)
 
