@@ -21,6 +21,7 @@ import json
 import logging
 import re
 import random
+import unicodedata
 from datetime import datetime, timezone
 from typing import List, Dict, Any, Optional
 
@@ -317,20 +318,31 @@ def classify_category(descricao: str) -> Optional[str]:
     return None
 
 
+def sanitize_fornecedor_text(text: str) -> str:
+    if not text:
+        return ""
+    # Remove accents
+    s = ''.join(c for c in unicodedata.normalize('NFD', str(text)) if unicodedata.category(c) != 'Mn')
+    # Replace non-alphanumeric with spaces
+    s = re.sub(r'[^a-zA-Z0-9]', ' ', s)
+    # Remove multiple spaces and upper
+    return re.sub(r'\s+', ' ', s).strip().upper()
+
 def normalizar_fornecedor(razao: str) -> str:
     """Normaliza razão social. Usa regras do banco (_NORMALIZACAO_RULES_DB).
     Fallback para hardcoded se banco indisponível. (SPEC §4.4)
     Nunca retorna string vazia — retorna a razão em UPPER como fallback final.
     """
-    upper = str(razao or "").upper().strip()
-    if not upper:
+    clean_upper = sanitize_fornecedor_text(razao)
+    if not clean_upper:
         return ""
 
     rules = _NORMALIZACAO_RULES_DB if _NORMALIZACAO_RULES_DB else NORMALIZACAO_FALLBACK
     for pattern, normalized in rules:
-        if re.search(pattern, upper, re.IGNORECASE):
+        # We search inside the sanitized string
+        if re.search(pattern, clean_upper, re.IGNORECASE):
             return normalized
-    return upper
+    return clean_upper
 
 
 def sleep_entre_chamadas():
@@ -647,11 +659,7 @@ def crawlear_pncp() -> List[Dict[str, Any]]:
                         ano = item_busca.get("ano") or item_busca.get("anoCompra", 0) or 0
                         seq = item_busca.get("numero_sequencial") or item_busca.get("sequencialCompra", 0) or 0
 
-                        # Limitação de data (últimos 12 meses — API ordena -data)
-                        if ano and int(ano) < 2025:
-                            logger.info(f"[{sigla}] {uf} — Registro antigo (ano {ano}). Parando paginação.")
-                            stop_pagination = True
-                            break
+                        # Sem limitação de data hardcoded para permitir reprodução do piloto
 
                         # Extrair CNPJ/ano/seq da item_url se não vieram direto
                         item_url = item_busca.get("item_url", "")

@@ -158,24 +158,30 @@ CREATE TABLE IF NOT EXISTS coleta_log (
 -- 7. View Inteligente de Consolidação (Mantém retrocompatibilidade)
 DROP VIEW IF EXISTS view_vendas_maquinas_reais CASCADE;
 
-CREATE VIEW view_vendas_maquinas_reais AS
+CREATE OR REPLACE VIEW view_vendas_maquinas_reais AS
 SELECT 
-    id,
-    municipio,
-    uf,
-    orgao,
-    fornecedor_original,
-    fornecedor_normalizado,
-    marca_deduzida,
-    quantidade,
-    valor_unitario,
-    (quantidade * valor_unitario) AS valor_total,
-    data_homologacao,
-    descricao_original,
-    url_origem,
-    categoria_sigla,
-    comprador_tipo
-FROM transacao
-WHERE UPPER(situacao) = 'HOMOLOGADO' 
-  AND tipo_registro = 'COMPRA_NOVA'
-  AND (fonte_id = 'PNCP' OR fonte_id IS NULL);
+    t.id,
+    t.municipio,
+    t.uf,
+    t.orgao,
+    t.fornecedor_original,
+    t.fornecedor_normalizado,
+    t.marca_deduzida,
+    t.quantidade,
+    t.valor_unitario,
+    (t.quantidade * t.valor_unitario) AS valor_total,
+    t.data_homologacao,
+    t.descricao_original,
+    t.url_origem,
+    t.categoria_sigla,
+    t.comprador_tipo
+FROM transacao t
+LEFT JOIN config_filtros_categoria c ON t.categoria_sigla = c.categoria_sigla
+WHERE UPPER(t.situacao) = 'HOMOLOGADO' 
+  AND t.tipo_registro = 'COMPRA_NOVA'
+  AND (t.fonte_id = 'PNCP' OR t.fonte_id IS NULL)
+  AND (c.categoria_sigla IS NULL OR (
+      t.valor_unitario >= c.valor_minimo_unitario
+      AND (c.valor_maximo_unitario IS NULL OR t.valor_unitario <= c.valor_maximo_unitario)
+      AND t.quantidade <= c.qtd_max
+  ));
