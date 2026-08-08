@@ -739,6 +739,8 @@ def add_dealer_marca(item: DealerMarcaItem, current_user: dict = Depends(get_cur
                VALUES (%s, %s, %s, %s, %s);""",
             (item.fornecedor_normalizado.upper(), item.marca, item.confianca, item.data_inicio_vigencia, item.data_fim_vigencia)
         )
+        # Forçar o trigger a recalcular a marca deduzida para este fornecedor
+        cur.execute("UPDATE transacao SET marca_deduzida = NULL WHERE fornecedor_normalizado = %s;", (item.fornecedor_normalizado.upper(),))
         conn.commit()
         cur.close()
         conn.close()
@@ -828,6 +830,8 @@ def update_dealer_marca(id: int, item: DealerMarcaItem, current_user: dict = Dep
                data_inicio_vigencia = %s, data_fim_vigencia = %s WHERE id = %s;""",
             (item.fornecedor_normalizado.upper(), item.marca, item.confianca, item.data_inicio_vigencia, item.data_fim_vigencia, id)
         )
+        # Forçar o trigger a recalcular a marca deduzida para este fornecedor
+        cur.execute("UPDATE transacao SET marca_deduzida = NULL WHERE fornecedor_normalizado = %s;", (item.fornecedor_normalizado.upper(),))
         conn.commit()
         cur.close()
         conn.close()
@@ -843,7 +847,16 @@ def delete_dealer_marca(id: int, current_user: dict = Depends(get_current_user))
         raise HTTPException(status_code=500, detail="Database connection failed.")
     try:
         cur = conn.cursor()
-        cur.execute("DELETE FROM dealer_marca WHERE id = %s;", (id,))
+        cur.execute("SELECT fornecedor_normalizado FROM dealer_marca WHERE id = %s;", (id,))
+        row = cur.fetchone()
+        if row:
+            fornecedor_normalizado = row[0]
+            cur.execute("DELETE FROM dealer_marca WHERE id = %s;", (id,))
+            # Forçar o trigger a recalcular a marca deduzida para este fornecedor (irá cair em NÃO IDENTIFICADA)
+            cur.execute("UPDATE transacao SET marca_deduzida = NULL WHERE fornecedor_normalizado = %s;", (fornecedor_normalizado,))
+        else:
+            cur.execute("DELETE FROM dealer_marca WHERE id = %s;", (id,))
+            
         conn.commit()
         cur.close()
         conn.close()

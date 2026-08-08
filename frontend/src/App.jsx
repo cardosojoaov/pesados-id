@@ -217,8 +217,8 @@ export default function PesadosDashboard() {
       <section className="bg-branco border-b border-linha py-3.5 sticky top-16 z-40 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
 
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex flex-col">
+          <div className="flex flex-wrap items-center gap-3 w-full">
+            <div className="flex flex-col w-full sm:w-auto flex-1 min-w-[140px]">
               <label className="text-[9px] font-bold tracking-wider text-ink-45 uppercase mb-1">Categoria</label>
               <select
                 value={categoria}
@@ -236,7 +236,7 @@ export default function PesadosDashboard() {
               </select>
             </div>
 
-            <div className="flex flex-col">
+            <div className="flex flex-col w-full sm:w-auto flex-1 min-w-[140px]">
               <label className="text-[9px] font-bold tracking-wider text-ink-45 uppercase mb-1">Estado (UF)</label>
               <select
                 value={uf}
@@ -250,19 +250,20 @@ export default function PesadosDashboard() {
               </select>
             </div>
 
-            <div className="flex flex-col">
+            <div className="flex flex-col w-full sm:w-auto flex-1 min-w-[140px]">
               <label className="text-[9px] font-bold tracking-wider text-ink-45 uppercase mb-1">Período</label>
               <select
                 value={periodo}
                 onChange={(e) => setPeriodo(e.target.value)}
                 className="bg-off-white border border-linha rounded-lg px-3 py-1.5 text-xs font-semibold text-obsidiana focus:outline-none focus:ring-1 focus:ring-obsidiana cursor-pointer"
               >
+                <option value="2000-01-01_2099-12-31">Todo o Histórico (Validação)</option>
                 <option value="2025-07-01_2026-06-30">Últimos 12 Meses (Piloto)</option>
                 <option value="2026-01-01_2026-06-30">Primeiro Semestre 2026</option>
               </select>
             </div>
 
-            <div className="flex flex-col">
+            <div className="flex flex-col w-full sm:w-auto flex-1 min-w-[140px]">
               <label className="text-[9px] font-bold tracking-wider text-ink-45 uppercase mb-1">Segmento</label>
               <select
                 value={segmento}

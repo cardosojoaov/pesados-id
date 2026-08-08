@@ -615,9 +615,10 @@ def processar_item(
 
 # ─── Crawler principal ──────────────────────────────────────────────
 
-def crawlear_pncp() -> List[Dict[str, Any]]:
+def crawlear_pncp(db_url: str = None) -> List[Dict[str, Any]]:
     """Loop principal: 8 categorias × 27 UFs com paginação e chamada ao /resultados."""
     todos_registros = []
+    novos_registros = []
     total_chamadas = 0
 
     chaves_existentes = load_existing_keys()
@@ -703,10 +704,15 @@ def crawlear_pncp() -> List[Dict[str, Any]]:
                             )
                             if registro:
                                 todos_registros.append(registro)
+                                novos_registros.append(registro)
 
                         sleep_entre_chamadas()
 
-                    # Paginação
+                    # Paginação e Salvar Progresso
+                    if db_url and novos_registros:
+                        ingest_to_supabase(novos_registros, db_url)
+                        novos_registros.clear()
+
                     if pagina * 100 >= total or len(items) < 100 or stop_pagination:
                         break
                     pagina += 1
@@ -839,7 +845,7 @@ def run_pipeline():
     if not api_conectada:
         logger.warning("Conexão inicial com a API PNCP teve oscilações nas UFs de teste. Prosseguindo diretamente com a coleta nacional...")
 
-    registros = crawlear_pncp()
+    registros = crawlear_pncp(db_url)
 
     if not registros:
         logger.warning("Nenhum registro retornado pelo PNCP nesta execução.")

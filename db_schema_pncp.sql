@@ -125,7 +125,8 @@ BEGIN
         SELECT marca INTO NEW.marca_deduzida
         FROM dealer_marca
         WHERE fornecedor_normalizado = NEW.fornecedor_normalizado
-          AND (data_fim_vigencia IS NULL OR CURRENT_DATE <= data_fim_vigencia)
+          AND (data_inicio_vigencia IS NULL OR COALESCE(NEW.data_homologacao, NEW.iniciada_em, CURRENT_DATE)::DATE >= data_inicio_vigencia)
+          AND (data_fim_vigencia IS NULL OR COALESCE(NEW.data_homologacao, NEW.iniciada_em, CURRENT_DATE)::DATE <= data_fim_vigencia)
         ORDER BY CASE WHEN confianca = 'confirmado' THEN 1 ELSE 2 END
         LIMIT 1;
         
